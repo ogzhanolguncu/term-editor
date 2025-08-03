@@ -66,6 +66,7 @@ func moveCursor(key int) {
 		if cX > 1 {
 			cX--
 		} else if cY > 1 {
+			// Wrap to end of previous line
 			cY--
 			cX = len(buffer.lines[cY-1]) + 1
 		}
@@ -75,6 +76,7 @@ func moveCursor(key int) {
 			if cX <= len(line) {
 				cX++
 			} else if cY < len(buffer.lines) {
+				// Wrap to start of next line
 				cY++
 				cX = 1
 			}
@@ -83,6 +85,7 @@ func moveCursor(key int) {
 		if cY > 1 {
 			cY--
 			line := buffer.lines[cY-1]
+			// Clamp cursor to avoid going past line end
 			if cX-1 > len(line) {
 				cX = len(line) + 1
 			}
@@ -92,31 +95,32 @@ func moveCursor(key int) {
 			cY++
 			if cY-1 < len(buffer.lines) {
 				line := buffer.lines[cY-1]
+				// Clamp cursor to avoid going past line end
 				if cX-1 > len(line) {
 					cX = len(line) + 1
 				}
 			}
 		}
 	case EnterKey:
+		// Ensure buffer has current line
 		for len(buffer.lines) <= cY-1 {
 			buffer.lines = append(buffer.lines, "")
 		}
 
 		line := buffer.lines[cY-1]
-		leftPart := line[:cX-1]  // Text before cursor
-		rightPart := line[cX-1:] // Text after cursor
+		leftPart := line[:cX-1]  // Before cursor
+		rightPart := line[cX-1:] // After cursor
 
-		// Update current line to only have left part
 		buffer.lines[cY-1] = leftPart
 
 		// Insert new line with right part
 		newLine := []string{rightPart}
 		buffer.lines = append(buffer.lines[:cY], append(newLine, buffer.lines[cY:]...)...)
 
-		// Move cursor to beginning of new line
 		cY++
 		cX = 1
 	}
+	// Sync terminal cursor with logical position
 	fmt.Printf("\x1b[%d;%dH", cY, cX)
 }
 
