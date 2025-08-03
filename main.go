@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -23,7 +24,11 @@ const (
 	EnterKey
 )
 
-var cX, cY int = 1, 1
+var (
+	cX, cY int = 1, 1
+	buffer *TextBuffer
+	screen *Screen
+)
 
 func main() {
 	// Switch to raw term mode
@@ -32,29 +37,27 @@ func main() {
 		panic(err)
 	}
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
-	clearScreen()
+	buffer = NewTextBuffer()
+	screen = NewScreen(buffer)
+
 	for {
-		key := readScreenInput()
+		ch := readScreenInput()
 		// TODO: CTRL-C to exit. Move to this to somewhere else later
-		if key == 3 {
+		if ch == 3 {
 			break
 		}
-		if key == ArrowLeft ||
-			key == ArrowRight ||
-			key == ArrowUp ||
-			key == ArrowDown ||
-			key == EnterKey {
-			moveCursor(key)
+		if ch == ArrowLeft ||
+			ch == ArrowRight ||
+			ch == ArrowUp ||
+			ch == ArrowDown ||
+			ch == EnterKey {
+			moveCursor(ch)
 		} else {
-			cX++
-			fmt.Printf("%c", key)
+			insertChart(byte(ch))
 		}
-	}
-}
+		screen.Refresh()
 
-func clearScreen() {
-	fmt.Print("\x1b[2J") // Clear entire screen
-	fmt.Print("\x1b[H")  // Move cursor to top-left (1,1)
+	}
 }
 
 func moveCursor(key int) {
@@ -62,30 +65,59 @@ func moveCursor(key int) {
 	case ArrowLeft:
 		if cX > 1 {
 			cX--
+		} else if cY > 1 {
+			cY--
+			cX = len(buffer.lines[cY-1]) + 1
 		}
 	case ArrowRight:
-		// TODO: Later add bounds to check
-		cX++
+		if cY-1 < len(buffer.lines) {
+			line := buffer.lines[cY-1]
+			if cX <= len(line) {
+				cX++
+			} else if cY < len(buffer.lines) {
+				cY++
+				cX = 1
+			}
+		}
 	case ArrowUp:
 		if cY > 1 {
 			cY--
+			line := buffer.lines[cY-1]
+			if cX-1 > len(line) {
+				cX = len(line) + 1
+			}
 		}
 	case ArrowDown:
-		// TODO: Later add bounds to check
-		cY++
+		if cY < len(buffer.lines) {
+			cY++
+			if cY-1 < len(buffer.lines) {
+				line := buffer.lines[cY-1]
+				if cX-1 > len(line) {
+					cX = len(line) + 1
+				}
+			}
+		}
 	case EnterKey:
+		for len(buffer.lines) <= cY-1 {
+			buffer.lines = append(buffer.lines, "")
+		}
+
+		line := buffer.lines[cY-1]
+		leftPart := line[:cX-1]  // Text before cursor
+		rightPart := line[cX-1:] // Text after cursor
+
+		// Update current line to only have left part
+		buffer.lines[cY-1] = leftPart
+
+		// Insert new line with right part
+		newLine := []string{rightPart}
+		buffer.lines = append(buffer.lines[:cY], append(newLine, buffer.lines[cY:]...)...)
+
+		// Move cursor to beginning of new line
 		cY++
-		cX = 1 // Go back to beginning of line
+		cX = 1
 	}
 	fmt.Printf("\x1b[%d;%dH", cY, cX)
-}
-
-func hideCursor() {
-	fmt.Print("\x1b[?25l")
-}
-
-func showCursor() {
-	fmt.Print("\x1b[?25h")
 }
 
 func readScreenInput() int {
@@ -160,6 +192,70 @@ func readScreenInput() int {
 }
 
 func nuke(err error) {
-	clearScreen()
+	screen.Clear()
 	log.Fatal(err)
+}
+
+// ##################### TEXT BUFFER #####################
+
+type TextBuffer struct {
+	lines []string
+}
+
+func NewTextBuffer() *TextBuffer {
+	return &TextBuffer{
+		lines: make([]string, 0),
+	}
+}
+
+func insertChart(ch byte) {
+	for len(buffer.lines) <= cY-1 {
+		buffer.lines = append(buffer.lines, "")
+	}
+
+	line := buffer.lines[cY-1]
+	// This is required for inline editing like editing an item from middle.
+	line = line[:cX-1] + string(ch) + line[cX-1:]
+	buffer.lines[cY-1] = line
+	cX++
+}
+
+// ##################### SCREEN #####################
+
+type Screen struct {
+	buffer                   *TextBuffer
+	dirty                    bool
+	dirtyLines               map[int]bool
+	lastCursorX, lastCursorY int
+}
+
+func NewScreen(textBuffer *TextBuffer) *Screen {
+	screen := &Screen{
+		buffer:      textBuffer,
+		lastCursorX: cX,
+		lastCursorY: cY,
+	}
+	screen.Clear()
+	return screen
+}
+
+func (s *Screen) Clear() {
+	fmt.Print("\x1b[2J") // Clear entire screen
+	fmt.Print("\x1b[H")  // Move cursor to top-left (1,1)
+}
+
+func (s *Screen) Refresh() {
+	ab := bytes.NewBufferString("\x1b[?25l") // Hide cursor
+	ab.WriteString("\x1b[H")                 // Move cursor to top-left (1,1)
+
+	// Draw all lines
+	for i, line := range s.buffer.lines {
+		fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K%s", i+1, line) // \x1b[K clears to end of line
+	}
+
+	// Position cursor and show it
+	fmt.Fprintf(ab, "\x1b[%d;%dH", cY, cX)
+	ab.WriteString("\x1b[?25h") // Show cursor
+
+	ab.WriteTo(os.Stdout)
 }
