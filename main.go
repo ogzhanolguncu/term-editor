@@ -39,9 +39,14 @@ func main() {
 		if key == 3 {
 			break
 		}
-		if key == ArrowLeft || key == ArrowRight || key == ArrowUp || key == ArrowDown {
+		if key == ArrowLeft ||
+			key == ArrowRight ||
+			key == ArrowUp ||
+			key == ArrowDown ||
+			key == EnterKey {
 			moveCursor(key)
 		} else {
+			cX++
 			fmt.Printf("%c", key)
 		}
 	}
@@ -65,9 +70,12 @@ func moveCursor(key int) {
 		if cY > 1 {
 			cY--
 		}
-	case ArrowDown, EnterKey:
+	case ArrowDown:
 		// TODO: Later add bounds to check
 		cY++
+	case EnterKey:
+		cY++
+		cX = 1 // Go back to beginning of line
 	}
 	fmt.Printf("\x1b[%d;%dH", cY, cX)
 }
@@ -86,7 +94,7 @@ func readScreenInput() int {
 		nuke(err)
 	}
 
-	if buffer[0] == 'n' || buffer[0] == '\r' {
+	if buffer[0] == '\n' || buffer[0] == '\r' {
 		return EnterKey
 	}
 
