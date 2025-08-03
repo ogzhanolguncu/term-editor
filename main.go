@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 
@@ -12,15 +11,16 @@ import (
 const (
 	BACKSPACE = 127
 
-	ArrowLeft  = 1000 + iota
-	ArrowRight = 1000 + iota
-	ArrowUp    = 1000 + iota
-	ArrowDown  = 1000 + iota
-	DelKey     = 1000 + iota
-	HomeKey    = 1000 + iota
-	EndKey     = 1000 + iota
-	PageUp     = 1000 + iota
-	PageDown   = 1000 + iota
+	ArrowLeft = 1000 + iota
+	ArrowRight
+	ArrowUp
+	ArrowDown
+	DelKey
+	HomeKey
+	EndKey
+	PageUp
+	PageDown
+	EnterKey
 )
 
 var cX, cY int = 1, 1
@@ -34,12 +34,16 @@ func main() {
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
 	clearScreen()
 	for {
-
-		char := readScreenInput()
-		if char == 3 {
+		key := readScreenInput()
+		// TODO: CTRL-C to exit. Move to this to somewhere else later
+		if key == 3 {
 			break
 		}
-		fmt.Printf("%c", char)
+		if key == ArrowLeft || key == ArrowRight || key == ArrowUp || key == ArrowDown {
+			moveCursor(key)
+		} else {
+			fmt.Printf("%c", key)
+		}
 	}
 }
 
@@ -50,10 +54,22 @@ func clearScreen() {
 
 func moveCursor(key int) {
 	switch key {
-		case ArrowUp, ArrowDown, ArrowLeft, ArrowRight:
-		case
-
+	case ArrowLeft:
+		if cX > 1 {
+			cX--
+		}
+	case ArrowRight:
+		// TODO: Later add bounds to check
+		cX++
+	case ArrowUp:
+		if cY > 1 {
+			cY--
+		}
+	case ArrowDown, EnterKey:
+		// TODO: Later add bounds to check
+		cY++
 	}
+	fmt.Printf("\x1b[%d;%dH", cY, cX)
 }
 
 func hideCursor() {
@@ -70,6 +86,10 @@ func readScreenInput() int {
 		nuke(err)
 	}
 
+	if buffer[0] == 'n' || buffer[0] == '\r' {
+		return EnterKey
+	}
+
 	if buffer[0] == '\x1b' {
 		var seq [2]byte
 		if cc, err := os.Stdin.Read(seq[:]); cc != 2 || err != nil {
@@ -77,6 +97,7 @@ func readScreenInput() int {
 		}
 
 		switch seq[0] {
+
 		case '[':
 			if seq[1] >= '0' && seq[1] <= '9' {
 				if cc, err := os.Stdin.Read(buffer[:]); cc != 1 || err != nil {
@@ -131,7 +152,6 @@ func readScreenInput() int {
 }
 
 func nuke(err error) {
-	io.WriteString(os.Stdout, "\x1b[2J")
-	io.WriteString(os.Stdout, "\x1b[H")
+	clearScreen()
 	log.Fatal(err)
 }
