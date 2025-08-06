@@ -9,11 +9,21 @@ import (
 	"golang.org/x/term"
 )
 
+// TODO:
+// [ ] Implement Ctrl+S save functionality
+// [ ] Add command line argument support for opening file
+// [ ] Add file loading (Ctrl+O) - load file content, clear buffer, reset cursor
+// [ ] Track modified state - bool flag, set on edits, clear on save/load
+// [ ] Add basic status line - show "filename [modified] | Line X, Col Y" at bottom
+// [ ] Implement Ctrl+N for new file
+// [ ] Add Ctrl+Q quit with save prompt
+
 type Key int
 
 const (
 	// ASCII/Control codes with explicit values
 	CtrlC     Key = 3
+	CtrlS     Key = 19
 	Backspace Key = 127
 	Enter     Key = 13
 )
