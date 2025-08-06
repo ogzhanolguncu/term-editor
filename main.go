@@ -138,20 +138,18 @@ func handleCursorMove(key Key) {
 func handleBackspace() {
 	// Cursor is at beginning and if there is a line above
 	if cX == 1 && cY > 1 {
-		if cX == 1 && cY > 1 {
-			// Ensure buffer has enough lines
-			for len(buffer.lines) <= cY-1 {
-				buffer.lines = append(buffer.lines, "")
-			}
-
-			line := buffer.lines[cY-1]
-			buffer.lines[cY-2] = fmt.Sprintf("%s%s", buffer.lines[cY-2], line)
-			// Remove current line from the slice
-			buffer.lines = append(buffer.lines[:cY-1], buffer.lines[cY:]...)
-			// Move cursor to above line and end of it
-			cY--
-			cX = len(buffer.lines[cY-1]) + 1
+		// Ensure buffer has enough lines
+		for len(buffer.lines) <= cY-1 {
+			buffer.lines = append(buffer.lines, "")
 		}
+
+		line := buffer.lines[cY-1]
+		buffer.lines[cY-2] = fmt.Sprintf("%s%s", buffer.lines[cY-2], line)
+		// Remove current line from the slice
+		buffer.lines = append(buffer.lines[:cY-1], buffer.lines[cY:]...)
+		// Move cursor to above line and end of it
+		cY--
+		cX = len(buffer.lines[cY-1]) + 1
 	} else if cX > 1 {
 		line := buffer.lines[cY-1]
 		buffer.lines[cY-1] = fmt.Sprintf("%s%s", line[:cX-2], line[cX-1:])
