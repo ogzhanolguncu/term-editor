@@ -84,7 +84,7 @@ func handleCursorMove(key Key) {
 	case ArrowRight:
 		if cY-1 < len(buffer.lines) {
 			line := buffer.lines[cY-1]
-			if cX <= len(line) {
+			if cX-1 < len(line) {
 				cX++
 			} else if cY < len(buffer.lines) {
 				// Wrap to start of next line
@@ -131,8 +131,6 @@ func handleCursorMove(key Key) {
 		cY++
 		cX = 1
 	}
-	// Sync terminal cursor with logical position
-	fmt.Printf("\x1b[%d;%dH", cY, cX)
 }
 
 func handleBackspace() {
@@ -263,10 +261,8 @@ func handleCharInsert(ch Key) {
 // ##################### SCREEN #####################
 
 type Screen struct {
-	buffer      *TextBuffer
-	lastLines   int
-	lastCursorX int
-	lastCursorY int
+	buffer    *TextBuffer
+	lastLines int
 }
 
 func NewScreen(textBuffer *TextBuffer) *Screen {
@@ -284,26 +280,36 @@ func (s *Screen) Clear() {
 
 func (s *Screen) Refresh() {
 	ab := bytes.NewBufferString("\x1b[?25l") // Hide cursor
-	currentLines := len(s.buffer.lines)
-	for i, line := range s.buffer.lines {
-		// Move to row i+1 col 1, clear line to end, then write line content
+
+	// Calculate minimum lines to render: either up to cursor position or all buffer lines
+	// This ensures cursor is always visible even if buffer is sparse
+	maxLines := max(cY, len(s.buffer.lines))
+
+	// Render all lines up to maxLines
+	for i := range maxLines {
+		line := ""
+		// Safe access: use empty string if line doesn't exist in buffer
+		if i < len(s.buffer.lines) {
+			line = s.buffer.lines[i]
+		}
+		// Move to row i+1 col 1, clear line to end, then write content
 		fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K%s", i+1, line)
 	}
-	// Clear any extra lines from previous render
-	if s.lastLines > currentLines {
-		for i := currentLines; i < s.lastLines; i++ {
-			// Move to row i+1 col 1, clear entire line
+
+	// Clear any leftover lines from previous render handles line deletion
+	// If we previously rendered 5 lines but now only need 3, clear lines 4-5
+	if s.lastLines > maxLines {
+		for i := maxLines; i < s.lastLines; i++ {
+			// Move to row i+1 col 1, clear entire line (remove old content)
 			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K", i+1)
 		}
 	}
-	// Update cursor position only if it changed
-	if s.lastCursorX != cX || s.lastCursorY != cY {
-		// Move cursor to current position
-		fmt.Fprintf(ab, "\x1b[%d;%dH", cY, cX)
-		s.lastCursorX = cX
-		s.lastCursorY = cY
-	}
-	s.lastLines = currentLines
+
+	// Move cursor to logical position
+	fmt.Fprintf(ab, "\x1b[%d;%dH", cY, cX)
+
+	// Remember how many lines we rendered for next refresh cycle
+	s.lastLines = maxLines
 	ab.WriteString("\x1b[?25h") // Show cursor
 	ab.WriteTo(os.Stdout)
 }
