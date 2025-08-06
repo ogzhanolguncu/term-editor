@@ -9,19 +9,26 @@ import (
 	"golang.org/x/term"
 )
 
-const (
-	BACKSPACE = 127
+type Key int
 
-	ArrowLeft = 1000 + iota
+const (
+	// ASCII/Control codes with explicit values
+	CtrlC     Key = 3
+	Backspace Key = 127
+	Enter     Key = 13
+)
+
+const (
+	// Special keys using iota
+	ArrowLeft Key = iota + 200
 	ArrowRight
 	ArrowUp
 	ArrowDown
-	DelKey
-	HomeKey
-	EndKey
+	Del
+	Home
+	End
 	PageUp
 	PageDown
-	EnterKey
 )
 
 var (
@@ -40,27 +47,31 @@ func main() {
 	buffer = NewTextBuffer()
 	screen = NewScreen(buffer)
 
+	// Main loop
 	for {
-		ch := readScreenInput()
-		// TODO: CTRL-C to exit. Move to this to somewhere else later
-		if ch == 3 {
-			break
-		}
-		if ch == ArrowLeft ||
-			ch == ArrowRight ||
-			ch == ArrowUp ||
-			ch == ArrowDown ||
-			ch == EnterKey {
-			moveCursor(ch)
-		} else {
-			insertChart(byte(ch))
-		}
+		key := readScreenInput()
+		handleKey(key)
 		screen.Refresh()
-
 	}
 }
 
-func moveCursor(key int) {
+// ##################### Key Handling #####################
+
+func handleKey(key Key) {
+	switch key {
+	case CtrlC:
+		screen.Clear()
+		os.Exit(0)
+	case Backspace:
+		handleBackspace()
+	case Enter, ArrowLeft, ArrowRight, ArrowUp, ArrowDown:
+		handleCursorMove(key)
+	default:
+		handleCharInsert(key)
+	}
+}
+
+func handleCursorMove(key Key) {
 	switch key {
 	case ArrowLeft:
 		if cX > 1 {
@@ -101,7 +112,7 @@ func moveCursor(key int) {
 				}
 			}
 		}
-	case EnterKey:
+	case Enter:
 		// Ensure buffer has current line
 		for len(buffer.lines) <= cY-1 {
 			buffer.lines = append(buffer.lines, "")
@@ -124,14 +135,41 @@ func moveCursor(key int) {
 	fmt.Printf("\x1b[%d;%dH", cY, cX)
 }
 
-func readScreenInput() int {
+func handleBackspace() {
+	// Cursor is at beginning and if there is a line above
+	if cX == 1 && cY > 1 {
+		if cX == 1 && cY > 1 {
+			// Ensure buffer has enough lines
+			for len(buffer.lines) <= cY-1 {
+				buffer.lines = append(buffer.lines, "")
+			}
+
+			line := buffer.lines[cY-1]
+			buffer.lines[cY-2] = fmt.Sprintf("%s%s", buffer.lines[cY-2], line)
+			// Remove current line from the slice
+			buffer.lines = append(buffer.lines[:cY-1], buffer.lines[cY:]...)
+			// Move cursor to above line and end of it
+			cY--
+			cX = len(buffer.lines[cY-1]) + 1
+		}
+	} else if cX > 1 {
+		line := buffer.lines[cY-1]
+		buffer.lines[cY-1] = fmt.Sprintf("%s%s", line[:cX-2], line[cX-1:])
+		cX--
+	} else {
+		// Do nothing - can't backspace at start of file
+		return
+	}
+}
+
+func readScreenInput() Key {
 	var buffer [1]byte
 	if _, err := os.Stdin.Read(buffer[:]); err != nil {
 		nuke(err)
 	}
 
 	if buffer[0] == '\n' || buffer[0] == '\r' {
-		return EnterKey
+		return Enter
 	}
 
 	if buffer[0] == '\x1b' {
@@ -150,19 +188,19 @@ func readScreenInput() int {
 				if buffer[0] == '~' {
 					switch seq[1] {
 					case '1':
-						return HomeKey
+						return Home
 					case '3':
-						return DelKey
+						return Del
 					case '4':
-						return EndKey
+						return End
 					case '5':
 						return PageUp
 					case '6':
 						return PageDown
 					case '7':
-						return HomeKey
+						return Home
 					case '8':
-						return EndKey
+						return End
 					}
 				}
 			} else {
@@ -176,23 +214,23 @@ func readScreenInput() int {
 				case 'D':
 					return ArrowLeft
 				case 'H':
-					return HomeKey
+					return Home
 				case 'F':
-					return EndKey
+					return End
 				}
 			}
 		case '0':
 			switch seq[1] {
 			case 'H':
-				return HomeKey
+				return Home
 			case 'F':
-				return EndKey
+				return End
 			}
 		}
 
 		return '\x1b'
 	}
-	return int(buffer[0])
+	return Key(buffer[0])
 }
 
 func nuke(err error) {
@@ -212,14 +250,14 @@ func NewTextBuffer() *TextBuffer {
 	}
 }
 
-func insertChart(ch byte) {
+func handleCharInsert(ch Key) {
 	for len(buffer.lines) <= cY-1 {
 		buffer.lines = append(buffer.lines, "")
 	}
 
 	line := buffer.lines[cY-1]
 	// This is required for inline editing like editing an item from middle.
-	line = line[:cX-1] + string(ch) + line[cX-1:]
+	line = line[:cX-1] + string(rune(ch)) + line[cX-1:]
 	buffer.lines[cY-1] = line
 	cX++
 }
@@ -227,17 +265,15 @@ func insertChart(ch byte) {
 // ##################### SCREEN #####################
 
 type Screen struct {
-	buffer                   *TextBuffer
-	dirty                    bool
-	dirtyLines               map[int]bool
-	lastCursorX, lastCursorY int
+	buffer      *TextBuffer
+	lastLines   int
+	lastCursorX int
+	lastCursorY int
 }
 
 func NewScreen(textBuffer *TextBuffer) *Screen {
 	screen := &Screen{
-		buffer:      textBuffer,
-		lastCursorX: cX,
-		lastCursorY: cY,
+		buffer: textBuffer,
 	}
 	screen.Clear()
 	return screen
@@ -250,16 +286,26 @@ func (s *Screen) Clear() {
 
 func (s *Screen) Refresh() {
 	ab := bytes.NewBufferString("\x1b[?25l") // Hide cursor
-	ab.WriteString("\x1b[H")                 // Move cursor to top-left (1,1)
-
-	// Draw all lines
+	currentLines := len(s.buffer.lines)
 	for i, line := range s.buffer.lines {
-		fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K%s", i+1, line) // \x1b[K clears to end of line
+		// Move to row i+1 col 1, clear line to end, then write line content
+		fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K%s", i+1, line)
 	}
-
-	// Position cursor and show it
-	fmt.Fprintf(ab, "\x1b[%d;%dH", cY, cX)
+	// Clear any extra lines from previous render
+	if s.lastLines > currentLines {
+		for i := currentLines; i < s.lastLines; i++ {
+			// Move to row i+1 col 1, clear entire line
+			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K", i+1)
+		}
+	}
+	// Update cursor position only if it changed
+	if s.lastCursorX != cX || s.lastCursorY != cY {
+		// Move cursor to current position
+		fmt.Fprintf(ab, "\x1b[%d;%dH", cY, cX)
+		s.lastCursorX = cX
+		s.lastCursorY = cY
+	}
+	s.lastLines = currentLines
 	ab.WriteString("\x1b[?25h") // Show cursor
-
 	ab.WriteTo(os.Stdout)
 }
