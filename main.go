@@ -14,12 +14,14 @@ import (
 
 // TODO:
 // [x] Implement Ctrl+S save functionality with propmting at the bottom. Also required for later iterations
-// [ ] Add command line argument support for opening file
+// [x] Add command line argument support for opening file
 // [ ] Add file loading (Ctrl+O) - load file content, clear buffer, reset cursor
-// [ ] Track modified state - bool flag, set on edits, clear on save/load
+// [x] Track modified state - bool flag, set on edits, clear on save/load
 // [ ] Add basic status line - show "filename [modified] | Line X, Col Y" at bottom
 // [ ] Implement Ctrl+N for new file
 // [ ] Add Ctrl+Q quit with save prompt
+
+const version = "GICO 0.1"
 
 type Key int
 
@@ -146,6 +148,7 @@ func handleCursorMove(key Key) {
 
 		cY++
 		cX = 1
+		buffer.modified = true
 	}
 }
 
@@ -159,10 +162,12 @@ func handleBackspace() {
 		// Move cursor to above line and end of it
 		cY--
 		cX = len(buffer.lines[cY-1]) + 1
+		buffer.modified = true
 	} else if cX > 1 {
 		line := buffer.lines[cY-1]
 		buffer.lines[cY-1] = fmt.Sprintf("%s%s", line[:cX-2], line[cX-1:])
 		cX--
+		buffer.modified = true
 	} else {
 		// Do nothing - can't backspace at start of file
 		return
@@ -424,36 +429,81 @@ func (s *Screen) Clear() {
 func (s *Screen) Refresh() {
 	ab := bytes.NewBufferString("\x1b[?25l") // Hide cursor
 
-	// Calculate minimum lines to render: either up to cursor position or all buffer lines
-	// This ensures cursor is always visible even if buffer is sparse
-	maxLines := max(cY, len(s.buffer.lines))
+	// Get terminal width
+	width := 80 // fallback
+	if w, _, err := term.GetSize(int(os.Stdin.Fd())); err == nil {
+		width = w
+	}
 
-	// Render all lines up to maxLines
+	// Build 3-section header like UW PICO
+	leftSection := fmt.Sprintf("  %s", version)
+
+	filename := "New Buffer"
+	if s.buffer.fPath != "" {
+		filename = getDisplayPath(s.buffer.fPath)
+	}
+	centerSection := fmt.Sprintf("File: %s", filename)
+
+	rightSection := ""
+	if s.buffer.modified {
+		rightSection = fmt.Sprintf("%s  ", "MODIFIED")
+	}
+
+	// Calculate center position for middle section
+	centerStart := (width - len(centerSection)) / 2
+
+	// Build header with exact positioning
+	header := make([]rune, width)
+	for i := range header {
+		header[i] = ' ' // Fill with spaces
+	}
+
+	// Place left section (starts at position 0)
+	copy(header[0:], []rune(leftSection))
+
+	// Place center section (centered)
+	if centerStart >= 0 && centerStart+len(centerSection) <= width {
+		copy(header[centerStart:], []rune(centerSection))
+	}
+
+	// Place right section (right-aligned)
+	rightStart := width - len(rightSection)
+	if rightStart >= 0 {
+		copy(header[rightStart:], []rune(rightSection))
+	}
+
+	// Header with inverted colors covering full row
+	fmt.Fprintf(ab, "\x1b[1;1H\x1b[7m%s\x1b[0m", string(header))
+
+	// Render buffer content starting from line 2
+	maxLines := max(cY, len(s.buffer.lines))
 	for i := range maxLines {
 		line := ""
-		// Safe access: use empty string if line doesn't exist in buffer
 		if i < len(s.buffer.lines) {
 			line = s.buffer.lines[i]
 		}
-		// Move to row i+1 col 1, clear line to end, then write content
-		fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K%s", i+1, line)
-	}
 
-	// Clear any leftover lines from previous render handles line deletion
-	// If we previously rendered 5 lines but now only need 3, clear lines 4-5
-	if s.lastLines > maxLines {
-		for i := maxLines; i < s.lastLines; i++ {
-			// Move to row i+1 col 1, clear entire line (remove old content)
-			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K", i+1)
+		// Current line highlighting + offset by 1 for header
+		if i+1 == cY {
+			// Pad line to full terminal width for complete background highlight
+			paddedLine := fmt.Sprintf("%-*s", width, line)
+			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K\x1b[48;5;236m%s\x1b[0m", i+2, paddedLine)
+		} else {
+			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K%s", i+2, line)
 		}
 	}
 
-	// Move cursor to logical position
-	fmt.Fprintf(ab, "\x1b[%d;%dH", cY, cX)
+	// Clear leftover lines (offset for header)
+	if s.lastLines > maxLines {
+		for i := maxLines; i < s.lastLines; i++ {
+			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K", i+2)
+		}
+	}
 
-	// Remember how many lines we rendered for next refresh cycle
+	// Cursor position (offset by 1 for header)
+	fmt.Fprintf(ab, "\x1b[%d;%dH", cY+1, cX)
 	s.lastLines = maxLines
-	ab.WriteString("\x1b[?25h") // Show cursor
+	ab.WriteString("\x1b[?25h")
 	ab.WriteTo(os.Stdout)
 }
 
