@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"golang.org/x/term"
 )
 
 // TODO:
-// [ ] Implement Ctrl+S save functionality
+// [x] Implement Ctrl+S save functionality with propmting at the bottom. Also required for later iterations
 // [ ] Add command line argument support for opening file
 // [ ] Add file loading (Ctrl+O) - load file content, clear buffer, reset cursor
 // [ ] Track modified state - bool flag, set on edits, clear on save/load
@@ -56,7 +59,6 @@ func main() {
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
 	buffer = NewTextBuffer()
 	screen = NewScreen(buffer)
-
 	// Main loop
 	for {
 		key := readScreenInput()
@@ -69,6 +71,8 @@ func main() {
 
 func handleKey(key Key) {
 	switch key {
+	case CtrlS:
+		handleSave()
 	case CtrlC:
 		screen.Clear()
 		os.Exit(0)
@@ -168,6 +172,82 @@ func handleBackspace() {
 	}
 }
 
+func handleSave() {
+	var filename string
+	if buffer.filename == "" {
+		filename = promptForFilename()
+	}
+	if err := trySaveFile(filename); err != nil {
+		screen.SetPrompt(fmt.Sprintf("Error saving: %v", err))
+		time.Sleep(1 * time.Second)
+		screen.Refresh()
+		return
+	}
+	buffer.modified = false
+
+	// Get file stats for display
+	stat, err := os.Stat(filename)
+	if err != nil {
+		screen.SetPrompt(fmt.Sprintf("Saved but unable to get file info: %v", err))
+		return
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		screen.SetPrompt(fmt.Sprintf("Saved but unable to get working directory: %v", err))
+		return
+	}
+
+	relPath, err := filepath.Rel(wd, filename)
+	if err != nil {
+		relPath = filename // fallback to full path on error
+	}
+
+	lineCount := len(buffer.lines)
+	screen.SetPrompt(fmt.Sprintf("\"%s\" %dL, %dB", relPath, lineCount, stat.Size()))
+}
+
+func trySaveFile(filename string) error {
+	if filename == "" {
+		return nil
+	}
+	c := strings.Join(buffer.lines, "\n")
+	return os.WriteFile(filename, []byte(c), 0644)
+}
+
+func promptForFilename() string {
+	screen.SetPrompt("Save as: ")
+	var filename strings.Builder
+
+	for {
+		key := readScreenInput()
+		switch key {
+		case CtrlC:
+			screen.Refresh()
+			return ""
+		case Enter:
+			if filename.Len() == 0 {
+				continue
+			}
+			screen.Refresh()
+			return filename.String()
+		case Backspace:
+			if filename.Len() > 0 {
+				str := filename.String()
+				filename.Reset()
+				// From beginning to last char
+				filename.WriteString(str[:len(str)-1])
+				screen.SetPrompt("Save as: " + filename.String())
+			}
+		default:
+			if key >= 32 && key <= 126 {
+				filename.WriteRune(rune(key))
+				screen.SetPrompt("Save as: " + filename.String())
+			}
+		}
+	}
+}
+
 func readScreenInput() Key {
 	var buffer [1]byte
 	if _, err := os.Stdin.Read(buffer[:]); err != nil {
@@ -247,7 +327,9 @@ func nuke(err error) {
 // ##################### TEXT BUFFER #####################
 
 type TextBuffer struct {
-	lines []string
+	lines    []string
+	filename string
+	modified bool
 }
 
 func NewTextBuffer() *TextBuffer {
@@ -265,8 +347,23 @@ func handleCharInsert(ch Key) {
 	// This is required for inline editing like editing an item from middle.
 	line = line[:cX-1] + string(rune(ch)) + line[cX-1:]
 	buffer.lines[cY-1] = line
+	buffer.modified = true
 	cX++
 }
+
+// References for ANSI sequences
+//
+// \x1b[H          Move to top-left (1,1)
+// \x1b[2J         Clear entire screen
+// \x1b[K          Clear line from cursor right
+// \x1b[2K         Clear entire line
+// \x1b[%d;%dH     Move to row,col
+// \x1b[%dA        Move up N lines
+// \x1b[%dB        Move down N lines
+// \x1b[?25l       Hide cursor
+// \x1b[?25h       Show cursor
+// \x1b[7m         Invert colors (highlight)
+// \x1b[0m         Reset all formatting
 
 // ##################### SCREEN #####################
 
@@ -322,4 +419,17 @@ func (s *Screen) Refresh() {
 	s.lastLines = maxLines
 	ab.WriteString("\x1b[?25h") // Show cursor
 	ab.WriteTo(os.Stdout)
+}
+
+func (s *Screen) SetPrompt(prompt string) {
+	fmt.Printf("\x1b[%d;1H\x1b[K%s", s.getTerminalHeight(), prompt)
+}
+
+// TODO: Later we can detect resize
+func (s *Screen) getTerminalHeight() int {
+	// Get terminal size - fallback to 24 if unable to determine
+	if _, height, err := term.GetSize(int(os.Stdin.Fd())); err == nil {
+		return height
+	}
+	return 24
 }
