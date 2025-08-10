@@ -57,8 +57,13 @@ func main() {
 		panic(err)
 	}
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
-	buffer = NewTextBuffer()
+
+	fPath := os.Args[1]
+	buffer = NewTextBuffer(strings.TrimSpace(fPath))
 	screen = NewScreen(buffer)
+	buffer.OpenFile()
+	screen.Refresh()
+
 	// Main loop
 	for {
 		key := readScreenInput()
@@ -68,7 +73,6 @@ func main() {
 }
 
 // ##################### Key Handling #####################
-
 func handleKey(key Key) {
 	switch key {
 	case CtrlS:
@@ -173,11 +177,11 @@ func handleBackspace() {
 }
 
 func handleSave() {
-	var filename string
-	if buffer.filename == "" {
-		filename = promptForFilename()
+	var fPath string
+	if buffer.fPath == "" {
+		fPath = promptForFilename()
 	}
-	if err := trySaveFile(filename); err != nil {
+	if err := trySaveFile(fPath); err != nil {
 		screen.SetPrompt(fmt.Sprintf("Error saving: %v", err))
 		time.Sleep(1 * time.Second)
 		screen.Refresh()
@@ -186,7 +190,7 @@ func handleSave() {
 	buffer.modified = false
 
 	// Get file stats for display
-	stat, err := os.Stat(filename)
+	stat, err := os.Stat(fPath)
 	if err != nil {
 		screen.SetPrompt(fmt.Sprintf("Saved but unable to get file info: %v", err))
 		return
@@ -198,9 +202,9 @@ func handleSave() {
 		return
 	}
 
-	relPath, err := filepath.Rel(wd, filename)
+	relPath, err := filepath.Rel(wd, fPath)
 	if err != nil {
-		relPath = filename // fallback to full path on error
+		relPath = fPath // fallback to full path on error
 	}
 
 	lineCount := len(buffer.lines)
@@ -328,14 +332,34 @@ func nuke(err error) {
 
 type TextBuffer struct {
 	lines    []string
-	filename string
+	fPath    string
 	modified bool
 }
 
-func NewTextBuffer() *TextBuffer {
+func NewTextBuffer(fPath string) *TextBuffer {
 	return &TextBuffer{
-		lines: make([]string, 0),
+		lines:    make([]string, 0),
+		fPath:    fPath,
+		modified: false,
 	}
+}
+
+func (tb *TextBuffer) OpenFile() {
+	if tb.fPath == "" {
+		return
+	}
+
+	content, err := os.ReadFile(tb.fPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			cX, cY = 1, 1
+			return
+		}
+		nuke(err)
+	}
+	tb.lines = strings.Split(strings.TrimSpace(string(content)), "\n")
+	lastLine := len(tb.lines) - 1
+	cX, cY = len(tb.lines[lastLine])+1, len(tb.lines)
 }
 
 func handleCharInsert(ch Key) {
