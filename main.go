@@ -58,10 +58,13 @@ func main() {
 	}
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
 
-	fPath := os.Args[1]
+	var fPath string
+	if len(os.Args) > 1 {
+		fPath = os.Args[1]
+	}
+
 	buffer = NewTextBuffer(strings.TrimSpace(fPath))
 	screen = NewScreen(buffer)
-	buffer.OpenFile()
 	screen.Refresh()
 
 	// Main loop
@@ -131,11 +134,6 @@ func handleCursorMove(key Key) {
 			}
 		}
 	case Enter:
-		// Ensure buffer has current line
-		for len(buffer.lines) <= cY-1 {
-			buffer.lines = append(buffer.lines, "")
-		}
-
 		line := buffer.lines[cY-1]
 		leftPart := line[:cX-1]  // Before cursor
 		rightPart := line[cX-1:] // After cursor
@@ -154,11 +152,6 @@ func handleCursorMove(key Key) {
 func handleBackspace() {
 	// Cursor is at beginning and if there is a line above
 	if cX == 1 && cY > 1 {
-		// Ensure buffer has enough lines
-		for len(buffer.lines) <= cY-1 {
-			buffer.lines = append(buffer.lines, "")
-		}
-
 		line := buffer.lines[cY-1]
 		buffer.lines[cY-2] = fmt.Sprintf("%s%s", buffer.lines[cY-2], line)
 		// Remove current line from the slice
@@ -177,14 +170,20 @@ func handleBackspace() {
 }
 
 func handleSave() {
-	var fPath string
+	fPath := buffer.fPath
 	if buffer.fPath == "" {
 		fPath = promptForFilename()
+		// User cancelled
+		if fPath == "" {
+			return
+		}
+		buffer.fPath = fPath
 	}
+
 	if err := trySaveFile(fPath); err != nil {
 		screen.SetPrompt(fmt.Sprintf("Error saving: %v", err))
 		time.Sleep(1 * time.Second)
-		screen.Refresh()
+		screen.SetPrompt("")
 		return
 	}
 	buffer.modified = false
@@ -196,19 +195,32 @@ func handleSave() {
 		return
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		screen.SetPrompt(fmt.Sprintf("Saved but unable to get working directory: %v", err))
-		return
-	}
-
-	relPath, err := filepath.Rel(wd, fPath)
-	if err != nil {
-		relPath = fPath // fallback to full path on error
-	}
-
+	displayPath := getDisplayPath(fPath)
 	lineCount := len(buffer.lines)
-	screen.SetPrompt(fmt.Sprintf("\"%s\" %dL, %dB", relPath, lineCount, stat.Size()))
+	screen.SetPrompt(fmt.Sprintf("\"%s\" %dL, %dB", displayPath, lineCount, stat.Size()))
+	time.Sleep(200 * time.Millisecond)
+	screen.SetPrompt("")
+}
+
+func getDisplayPath(fPath string) string {
+	// Convert to absolute path first
+	absPath, err := filepath.Abs(fPath)
+	if err != nil {
+		return fPath // fallback to original
+	}
+
+	// Get user home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return absPath // fallback to absolute path
+	}
+
+	// Replace home directory with ~
+	if strings.HasPrefix(absPath, homeDir) {
+		return "~" + absPath[len(homeDir):]
+	}
+
+	return absPath
 }
 
 func trySaveFile(filename string) error {
@@ -337,14 +349,17 @@ type TextBuffer struct {
 }
 
 func NewTextBuffer(fPath string) *TextBuffer {
-	return &TextBuffer{
-		lines:    make([]string, 0),
+	tb := &TextBuffer{
+		lines:    []string{""},
 		fPath:    fPath,
 		modified: false,
 	}
+
+	tb.openFile()
+	return tb
 }
 
-func (tb *TextBuffer) OpenFile() {
+func (tb *TextBuffer) openFile() {
 	if tb.fPath == "" {
 		return
 	}
@@ -363,10 +378,6 @@ func (tb *TextBuffer) OpenFile() {
 }
 
 func handleCharInsert(ch Key) {
-	for len(buffer.lines) <= cY-1 {
-		buffer.lines = append(buffer.lines, "")
-	}
-
 	line := buffer.lines[cY-1]
 	// This is required for inline editing like editing an item from middle.
 	line = line[:cX-1] + string(rune(ch)) + line[cX-1:]
@@ -394,6 +405,7 @@ func handleCharInsert(ch Key) {
 type Screen struct {
 	buffer    *TextBuffer
 	lastLines int
+	prompt    string
 }
 
 func NewScreen(textBuffer *TextBuffer) *Screen {
@@ -446,7 +458,8 @@ func (s *Screen) Refresh() {
 }
 
 func (s *Screen) SetPrompt(prompt string) {
-	fmt.Printf("\x1b[%d;1H\x1b[K%s", s.getTerminalHeight(), prompt)
+	s.prompt = prompt
+	fmt.Printf("\x1b[%d;1H\x1b[K%s\x1b[?25l", s.getTerminalHeight(), prompt)
 }
 
 // TODO: Later we can detect resize
