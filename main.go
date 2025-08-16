@@ -15,19 +15,20 @@ import (
 // TODO:
 // [x] Implement Ctrl+S save functionality with propmting at the bottom. Also required for later iterations
 // [x] Add command line argument support for opening file
-// [ ] Add file loading (Ctrl+O) - load file content, clear buffer, reset cursor
+// [x] Add file loading (Ctrl+O) - load file content, clear buffer, reset cursor
 // [x] Track modified state - bool flag, set on edits, clear on save/load
 // [ ] Add basic status line - show "filename [modified] | Line X, Col Y" at bottom
 // [ ] Implement Ctrl+N for new file
 // [ ] Add Ctrl+Q quit with save prompt
 
-const version = "GICO 0.1"
+const Version = "GICO 0.1"
 
 type Key int
 
 const (
 	// ASCII/Control codes with explicit values
 	CtrlC     Key = 3
+	CtrlO     Key = 15
 	CtrlS     Key = 19
 	Backspace Key = 127
 	Enter     Key = 13
@@ -82,6 +83,8 @@ func handleKey(key Key) {
 	switch key {
 	case CtrlS:
 		handleSave()
+	case CtrlO:
+		handleLoadFile()
 	case CtrlC:
 		screen.Clear()
 		os.Exit(0)
@@ -177,7 +180,7 @@ func handleBackspace() {
 func handleSave() {
 	fPath := buffer.fPath
 	if buffer.fPath == "" {
-		fPath = promptForFilename()
+		fPath = promptForFilename("Save as: ")
 		// User cancelled
 		if fPath == "" {
 			return
@@ -205,6 +208,42 @@ func handleSave() {
 	screen.SetPrompt(fmt.Sprintf("\"%s\" %dL, %dB", displayPath, lineCount, stat.Size()))
 	time.Sleep(200 * time.Millisecond)
 	screen.SetPrompt("")
+	// When new file opens move cursor to beginning
+	cX, cY = 1, 1
+}
+
+func handleLoadFile() {
+	fPath := promptForFilename("Open file: ")
+	// User cancelled
+	if fPath == "" {
+		return
+	}
+	buffer.fPath = fPath
+
+	var lines []byte
+	lines, err := tryToOpenFile(fPath)
+	if err != nil {
+		screen.SetPrompt(fmt.Sprintf("Error opening: %v", err))
+		time.Sleep(1 * time.Second)
+		screen.SetPrompt("")
+		return
+	}
+
+	buffer.lines = strings.Split(string(lines), "\n")
+	buffer.modified = false
+
+	stat, err := os.Stat(fPath)
+	if err != nil {
+		screen.SetPrompt(fmt.Sprintf("Loaded but unable to get file info: %v", err))
+		return
+	}
+
+	displayPath := getDisplayPath(fPath)
+	lineCount := len(buffer.lines)
+	screen.SetPrompt(fmt.Sprintf("\"%s\" %dL, %dB", displayPath, lineCount, stat.Size()))
+	time.Sleep(200 * time.Millisecond)
+	screen.SetPrompt("")
+	screen.MoveCursorToStart()
 }
 
 func getDisplayPath(fPath string) string {
@@ -228,6 +267,13 @@ func getDisplayPath(fPath string) string {
 	return absPath
 }
 
+func tryToOpenFile(filename string) ([]byte, error) {
+	if filename == "" {
+		return nil, nil
+	}
+	return os.ReadFile(filename)
+}
+
 func trySaveFile(filename string) error {
 	if filename == "" {
 		return nil
@@ -236,8 +282,8 @@ func trySaveFile(filename string) error {
 	return os.WriteFile(filename, []byte(c), 0644)
 }
 
-func promptForFilename() string {
-	screen.SetPrompt("Save as: ")
+func promptForFilename(prompt string) string {
+	screen.SetPrompt(prompt)
 	var filename strings.Builder
 
 	for {
@@ -258,12 +304,12 @@ func promptForFilename() string {
 				filename.Reset()
 				// From beginning to last char
 				filename.WriteString(str[:len(str)-1])
-				screen.SetPrompt("Save as: " + filename.String())
+				screen.SetPrompt(prompt + filename.String())
 			}
 		default:
 			if key >= 32 && key <= 126 {
 				filename.WriteRune(rune(key))
-				screen.SetPrompt("Save as: " + filename.String())
+				screen.SetPrompt(prompt + filename.String())
 			}
 		}
 	}
@@ -436,7 +482,7 @@ func (s *Screen) Refresh() {
 	}
 
 	// Build 3-section header like UW PICO
-	leftSection := fmt.Sprintf("  %s", version)
+	leftSection := fmt.Sprintf("  %s", Version)
 
 	filename := "New Buffer"
 	if s.buffer.fPath != "" {
@@ -506,6 +552,18 @@ func (s *Screen) Refresh() {
 	ab.WriteString("\x1b[?25h")
 	ab.WriteTo(os.Stdout)
 }
+
+func (s *Screen) MoveCursorToStart() {
+	cX, cY = 1, 1
+}
+
+func (s *Screen) MoveCursorToEnd() {
+	lastLine := len(s.buffer.lines)
+	lastCol := len(s.buffer.lines[len(s.buffer.lines)-1]) + 1
+	cX, cY = lastCol, lastLine
+}
+
+// \x1b[%d;%dH     Move to row,col
 
 func (s *Screen) SetPrompt(prompt string) {
 	s.prompt = prompt
