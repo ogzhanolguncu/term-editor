@@ -18,8 +18,8 @@ import (
 // [x] Add file loading (Ctrl+O) - load file content, clear buffer, reset cursor
 // [x] Track modified state - bool flag, set on edits, clear on save/load
 // [ ] Add basic status line - show "filename [modified] | Line X, Col Y" at bottom
-// [ ] Implement Ctrl+N for new file
-// [ ] Add Ctrl+Q quit with save prompt
+// [x] Implement Ctrl+N for new file
+// [x] Add Ctrl+Q quit with save prompt
 
 const Version = "GICO 0.1"
 
@@ -28,7 +28,9 @@ type Key int
 const (
 	// ASCII/Control codes with explicit values
 	CtrlC     Key = 3
+	CtrlN     Key = 14
 	CtrlO     Key = 15
+	CtrlQ     Key = 17
 	CtrlS     Key = 19
 	Backspace Key = 127
 	Enter     Key = 13
@@ -81,13 +83,16 @@ func main() {
 // ##################### Key Handling #####################
 func handleKey(key Key) {
 	switch key {
+	case CtrlQ:
+		handleQuitWithSave()
 	case CtrlS:
 		handleSave()
 	case CtrlO:
 		handleLoadFile()
+	case CtrlN:
+		handleNewFile()
 	case CtrlC:
-		screen.Clear()
-		os.Exit(0)
+		handleQuit()
 	case Backspace:
 		handleBackspace()
 	case Enter, ArrowLeft, ArrowRight, ArrowUp, ArrowDown:
@@ -95,6 +100,33 @@ func handleKey(key Key) {
 	default:
 		handleCharInsert(key)
 	}
+}
+
+func handleNewFile() {
+	if screen.buffer.modified {
+		screen.SetPrompt("Save changes? (y/n/c): ")
+		for {
+			key := readScreenInput()
+			switch key {
+			case 'y', 'Y':
+				handleSave()
+				screen.Restart()
+			case 'n', 'N':
+				screen.Restart()
+			case 'c', 'C', CtrlC:
+				screen.SetPrompt("")
+				return
+			default:
+				continue
+			}
+		}
+	}
+	screen.Restart()
+}
+
+func handleQuit() {
+	screen.Clear()
+	os.Exit(0)
 }
 
 func handleCursorMove(key Key) {
@@ -210,6 +242,26 @@ func handleSave() {
 	screen.SetPrompt("")
 	// When new file opens move cursor to beginning
 	cX, cY = 1, 1
+}
+
+func handleQuitWithSave() {
+	screen.SetPrompt("Save changes? (y/n/c): ")
+
+	for {
+		key := readScreenInput()
+		switch key {
+		case 'y', 'Y':
+			handleSave()
+			handleQuit()
+		case 'n', 'N':
+			handleQuit()
+		case 'c', 'C', CtrlC:
+			screen.SetPrompt("")
+			return
+		default:
+			continue
+		}
+	}
 }
 
 func handleLoadFile() {
@@ -561,6 +613,19 @@ func (s *Screen) MoveCursorToEnd() {
 	lastLine := len(s.buffer.lines)
 	lastCol := len(s.buffer.lines[len(s.buffer.lines)-1]) + 1
 	cX, cY = lastCol, lastLine
+}
+
+func (s *Screen) ClearAndQuit() {
+	screen.Clear()
+	os.Exit(0)
+}
+
+func (s *Screen) Restart() {
+	s.Clear()
+	s.MoveCursorToStart()
+	s.buffer.fPath = ""
+	s.buffer.modified = false
+	s.buffer.lines = []string{""}
 }
 
 // \x1b[%d;%dH     Move to row,col
