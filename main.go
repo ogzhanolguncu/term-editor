@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/term"
@@ -86,6 +89,24 @@ func main() {
 		screen.MoveCursorToEnd()
 	}
 	screen.Refresh()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Listen for SIGWINCH (window change signal)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGWINCH)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-sigCh:
+				screen.Refresh()
+			}
+		}
+	}()
 
 	// Main loop
 	for {
@@ -518,10 +539,9 @@ func handleCharInsert(ch Key) {
 // ##################### SCREEN #####################
 
 type Screen struct {
-	cX, cY    int
-	buffer    *TextBuffer
-	lastLines int
-	prompt    string
+	cX, cY int
+	buffer *TextBuffer
+	prompt string
 }
 
 func NewScreen(textBuffer *TextBuffer) *Screen {
@@ -550,12 +570,11 @@ const (
 	GruvboxBlue   = "109" // #83a598 - blue
 )
 
-func (s *Screen) renderStatusLine(ab *bytes.Buffer) {
-	width, height := s.getTerminalSize()
+func (s *Screen) renderStatusLine(ab *bytes.Buffer, termW, termH int) {
 	filename := "New Buffer"
 	if s.buffer.fPath != "" {
 		filename = getDisplayPath(s.buffer.fPath)
-		maxFilenameWidth := width * 35 / 100 // 35% of terminal width
+		maxFilenameWidth := termW * 35 / 100 // 35% of terminal width
 
 		if len(filename) > maxFilenameWidth {
 			filename = "..." + filename[len(filename)-maxFilenameWidth+3:]
@@ -576,29 +595,25 @@ func (s *Screen) renderStatusLine(ab *bytes.Buffer) {
 		len(s.buffer.lines),
 		time,
 	)
-	remainingWidth := width - len(leftStatus)
+	remainingWidth := termW - len(leftStatus)
 
-	// Render with right-aligned time
 	fmt.Fprintf(ab, "\x1b[%d;1H\x1b[38;5;%s;48;5;%sm%s%*s\x1b[0m",
-		height, GruvboxFg1, GruvboxBg1, leftStatus, remainingWidth, Version)
+		termH, GruvboxFg1, GruvboxBg1, leftStatus, remainingWidth, Version)
 }
 
 func (s *Screen) Refresh() {
 	ab := bytes.NewBufferString("\x1b[?25l") // Hide cursor
+	width, height := s.getTerminalSize()
 
-	width, _ := s.getTerminalSize()
+	visibleLines := height - 1 // Reserve bottom line for status
 
-	// Render buffer content starting from line 1
-	maxLines := max(s.cY, len(s.buffer.lines))
-	for i := range maxLines {
+	for i := range visibleLines {
 		line := ""
 		if i < len(s.buffer.lines) {
 			line = s.buffer.lines[i]
 		}
 
-		// Current line highlighting
 		if i+1 == s.cY {
-			// Pad line to full terminal width for complete background highlight
 			paddedLine := fmt.Sprintf("%-*s", width, line)
 			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K\x1b[48;5;236m%s\x1b[0m", i+1, paddedLine)
 		} else {
@@ -606,18 +621,10 @@ func (s *Screen) Refresh() {
 		}
 	}
 
-	// Clear leftover lines (offset for header)
-	if s.lastLines > maxLines {
-		for i := maxLines; i < s.lastLines; i++ {
-			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K", i+1)
-		}
-	}
-
-	s.renderStatusLine(ab)
+	s.renderStatusLine(ab, width, height)
 
 	// Cursor position (offset by 1 for header)
 	fmt.Fprintf(ab, "\x1b[%d;%dH", s.cY, s.cX)
-	s.lastLines = maxLines
 	ab.WriteString("\x1b[?25h")
 	ab.WriteTo(os.Stdout)
 }
