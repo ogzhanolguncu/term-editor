@@ -13,13 +13,25 @@ import (
 )
 
 // TODO:
-// [x] Implement Ctrl+S save functionality with propmting at the bottom. Also required for later iterations
+// [x] Implement Ctrl+S save functionality with prompting at the bottom
 // [x] Add command line argument support for opening file
 // [x] Add file loading (Ctrl+O) - load file content, clear buffer, reset cursor
 // [x] Track modified state - bool flag, set on edits, clear on save/load
-// [ ] Add basic status line - show "filename [modified] | Line X, Col Y" at bottom
 // [x] Implement Ctrl+N for new file
 // [x] Add Ctrl+Q quit with save prompt
+// CRITICAL REFACTORING (Before Scrolling):
+// [x] Move cursor state into Screen struct - remove global cX,cY, add cursorX,cursorY fields, create MoveCursor()/GetCursor() methods
+// [x] Fix cursor management - replace scattered cX,cY assignments with Screen methods, buffer ops shouldn't touch cursor
+// [ ] Add bottom status line - "filename [Modified] | Line X, Col Y | N lines", real-time updates, truncate long names
+// MAJOR FEATURES:
+// [ ] Vertical scrolling - add scrollY offset, render visible lines only, auto-scroll on cursor move, Page Up/Down support
+// [ ] Search functionality (Ctrl+F) - real-time highlighting, F3/Shift+F3 navigation, integration with scrolling
+// MINOR:
+// [ ] Handle Home/End keys properly
+// [ ] Clipboard operations (Ctrl+A/X/C/V)
+// [ ] Basic syntax highlighting
+// [ ] Undo/Redo (Ctrl+Z/Y)
+// [ ] Line numbers, word wrap, terminal resize handling
 
 const Version = "GICO 0.1"
 
@@ -50,7 +62,6 @@ const (
 )
 
 var (
-	cX, cY int = 1, 1
 	buffer *TextBuffer
 	screen *Screen
 )
@@ -70,6 +81,10 @@ func main() {
 
 	buffer = NewTextBuffer(strings.TrimSpace(fPath))
 	screen = NewScreen(buffer)
+	buffer.OpenFile()
+	if buffer.fPath != "" {
+		screen.MoveCursorToEnd()
+	}
 	screen.Refresh()
 
 	// Main loop
@@ -132,76 +147,76 @@ func handleQuit() {
 func handleCursorMove(key Key) {
 	switch key {
 	case ArrowLeft:
-		if cX > 1 {
-			cX--
-		} else if cY > 1 {
+		if screen.cX > 1 {
+			screen.cX--
+		} else if screen.cY > 1 {
 			// Wrap to end of previous line
-			cY--
-			cX = len(buffer.lines[cY-1]) + 1
+			screen.cY--
+			screen.cX = len(buffer.lines[screen.cY-1]) + 1
 		}
 	case ArrowRight:
-		if cY-1 < len(buffer.lines) {
-			line := buffer.lines[cY-1]
-			if cX-1 < len(line) {
-				cX++
-			} else if cY < len(buffer.lines) {
+		if screen.cY-1 < len(buffer.lines) {
+			line := buffer.lines[screen.cY-1]
+			if screen.cX-1 < len(line) {
+				screen.cX++
+			} else if screen.cY < len(buffer.lines) {
 				// Wrap to start of next line
-				cY++
-				cX = 1
+				screen.cY++
+				screen.cX = 1
 			}
 		}
 	case ArrowUp:
-		if cY > 1 {
-			cY--
-			line := buffer.lines[cY-1]
+		if screen.cY > 1 {
+			screen.cY--
+			line := buffer.lines[screen.cY-1]
 			// Clamp cursor to avoid going past line end
-			if cX-1 > len(line) {
-				cX = len(line) + 1
+			if screen.cX-1 > len(line) {
+				screen.cX = len(line) + 1
 			}
 		}
 	case ArrowDown:
-		if cY < len(buffer.lines) {
-			cY++
-			if cY-1 < len(buffer.lines) {
-				line := buffer.lines[cY-1]
+		if screen.cY < len(buffer.lines) {
+			screen.cY++
+			if screen.cY-1 < len(buffer.lines) {
+				line := buffer.lines[screen.cY-1]
 				// Clamp cursor to avoid going past line end
-				if cX-1 > len(line) {
-					cX = len(line) + 1
+				if screen.cX-1 > len(line) {
+					screen.cX = len(line) + 1
 				}
 			}
 		}
 	case Enter:
-		line := buffer.lines[cY-1]
-		leftPart := line[:cX-1]  // Before cursor
-		rightPart := line[cX-1:] // After cursor
+		line := buffer.lines[screen.cY-1]
+		leftPart := line[:screen.cX-1]  // Before cursor
+		rightPart := line[screen.cX-1:] // After cursor
 
-		buffer.lines[cY-1] = leftPart
+		buffer.lines[screen.cY-1] = leftPart
 
 		// Insert new line with right part
 		newLine := []string{rightPart}
-		buffer.lines = append(buffer.lines[:cY], append(newLine, buffer.lines[cY:]...)...)
+		buffer.lines = append(buffer.lines[:screen.cY], append(newLine, buffer.lines[screen.cY:]...)...)
 
-		cY++
-		cX = 1
+		screen.cY++
+		screen.cX = 1
 		buffer.modified = true
 	}
 }
 
 func handleBackspace() {
 	// Cursor is at beginning and if there is a line above
-	if cX == 1 && cY > 1 {
-		line := buffer.lines[cY-1]
-		buffer.lines[cY-2] = fmt.Sprintf("%s%s", buffer.lines[cY-2], line)
+	if screen.cX == 1 && screen.cY > 1 {
+		line := buffer.lines[screen.cY-1]
+		buffer.lines[screen.cY-2] = fmt.Sprintf("%s%s", buffer.lines[screen.cY-2], line)
 		// Remove current line from the slice
-		buffer.lines = append(buffer.lines[:cY-1], buffer.lines[cY:]...)
+		buffer.lines = append(buffer.lines[:screen.cY-1], buffer.lines[screen.cY:]...)
 		// Move cursor to above line and end of it
-		cY--
-		cX = len(buffer.lines[cY-1]) + 1
+		screen.cY--
+		screen.cX = len(buffer.lines[screen.cY-1]) + 1
 		buffer.modified = true
-	} else if cX > 1 {
-		line := buffer.lines[cY-1]
-		buffer.lines[cY-1] = fmt.Sprintf("%s%s", line[:cX-2], line[cX-1:])
-		cX--
+	} else if screen.cX > 1 {
+		line := buffer.lines[screen.cY-1]
+		buffer.lines[screen.cY-1] = fmt.Sprintf("%s%s", line[:screen.cX-2], line[screen.cX-1:])
+		screen.cX--
 		buffer.modified = true
 	} else {
 		// Do nothing - can't backspace at start of file
@@ -241,7 +256,7 @@ func handleSave() {
 	time.Sleep(200 * time.Millisecond)
 	screen.SetPrompt("")
 	// When new file opens move cursor to beginning
-	cX, cY = 1, 1
+	screen.MoveCursorToStart()
 }
 
 func handleQuitWithSave() {
@@ -458,11 +473,10 @@ func NewTextBuffer(fPath string) *TextBuffer {
 		modified: false,
 	}
 
-	tb.openFile()
 	return tb
 }
 
-func (tb *TextBuffer) openFile() {
+func (tb *TextBuffer) OpenFile() {
 	if tb.fPath == "" {
 		return
 	}
@@ -470,23 +484,21 @@ func (tb *TextBuffer) openFile() {
 	content, err := os.ReadFile(tb.fPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			cX, cY = 1, 1
+			screen.MoveCursorToStart()
 			return
 		}
 		nuke(err)
 	}
 	tb.lines = strings.Split(strings.TrimSpace(string(content)), "\n")
-	lastLine := len(tb.lines) - 1
-	cX, cY = len(tb.lines[lastLine])+1, len(tb.lines)
 }
 
 func handleCharInsert(ch Key) {
-	line := buffer.lines[cY-1]
+	line := buffer.lines[screen.cY-1]
 	// This is required for inline editing like editing an item from middle.
-	line = line[:cX-1] + string(rune(ch)) + line[cX-1:]
-	buffer.lines[cY-1] = line
+	line = line[:screen.cX-1] + string(rune(ch)) + line[screen.cX-1:]
+	buffer.lines[screen.cY-1] = line
 	buffer.modified = true
-	cX++
+	screen.cX++
 }
 
 // References for ANSI sequences
@@ -506,6 +518,7 @@ func handleCharInsert(ch Key) {
 // ##################### SCREEN #####################
 
 type Screen struct {
+	cX, cY    int
 	buffer    *TextBuffer
 	lastLines int
 	prompt    string
@@ -514,6 +527,8 @@ type Screen struct {
 func NewScreen(textBuffer *TextBuffer) *Screen {
 	screen := &Screen{
 		buffer: textBuffer,
+		cX:     1,
+		cY:     1,
 	}
 	screen.Clear()
 	return screen
@@ -574,7 +589,7 @@ func (s *Screen) Refresh() {
 	fmt.Fprintf(ab, "\x1b[1;1H\x1b[7m%s\x1b[0m", string(header))
 
 	// Render buffer content starting from line 2
-	maxLines := max(cY, len(s.buffer.lines))
+	maxLines := max(s.cY, len(s.buffer.lines))
 	for i := range maxLines {
 		line := ""
 		if i < len(s.buffer.lines) {
@@ -582,7 +597,7 @@ func (s *Screen) Refresh() {
 		}
 
 		// Current line highlighting + offset by 1 for header
-		if i+1 == cY {
+		if i+1 == s.cY {
 			// Pad line to full terminal width for complete background highlight
 			paddedLine := fmt.Sprintf("%-*s", width, line)
 			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K\x1b[48;5;236m%s\x1b[0m", i+2, paddedLine)
@@ -599,20 +614,20 @@ func (s *Screen) Refresh() {
 	}
 
 	// Cursor position (offset by 1 for header)
-	fmt.Fprintf(ab, "\x1b[%d;%dH", cY+1, cX)
+	fmt.Fprintf(ab, "\x1b[%d;%dH", s.cY+1, s.cX)
 	s.lastLines = maxLines
 	ab.WriteString("\x1b[?25h")
 	ab.WriteTo(os.Stdout)
 }
 
 func (s *Screen) MoveCursorToStart() {
-	cX, cY = 1, 1
+	s.cX, s.cY = 1, 1
 }
 
 func (s *Screen) MoveCursorToEnd() {
 	lastLine := len(s.buffer.lines)
 	lastCol := len(s.buffer.lines[len(s.buffer.lines)-1]) + 1
-	cX, cY = lastCol, lastLine
+	s.cX, s.cY = lastCol, lastLine
 }
 
 func (s *Screen) ClearAndQuit() {
