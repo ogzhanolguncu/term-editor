@@ -22,7 +22,7 @@ import (
 // CRITICAL REFACTORING (Before Scrolling):
 // [x] Move cursor state into Screen struct - remove global cX,cY, add cursorX,cursorY fields, create MoveCursor()/GetCursor() methods
 // [x] Fix cursor management - replace scattered cX,cY assignments with Screen methods, buffer ops shouldn't touch cursor
-// [ ] Add bottom status line - "filename [Modified] | Line X, Col Y | N lines", real-time updates, truncate long names
+// [x] Add bottom status line - "filename [Modified] | Line X, Col Y | N lines", real-time updates, truncate long names
 // MAJOR FEATURES:
 // [ ] Vertical scrolling - add scrollY offset, render visible lines only, auto-scroll on cursor move, Page Up/Down support
 // [ ] Search functionality (Ctrl+F) - real-time highlighting, F3/Shift+F3 navigation, integration with scrolling
@@ -539,56 +539,56 @@ func (s *Screen) Clear() {
 	fmt.Print("\x1b[H")  // Move cursor to top-left (1,1)
 }
 
-func (s *Screen) Refresh() {
-	ab := bytes.NewBufferString("\x1b[?25l") // Hide cursor
+// TODO: keep it remove it idk
+const (
+	GruvboxBg0    = "235" // #282828 - dark background
+	GruvboxBg1    = "237" // #3c3836 - lighter background
+	GruvboxFg1    = "223" // #ebdbb2 - light foreground
+	GruvboxOrange = "208" // #fe8019 - orange accent
+	GruvboxYellow = "214" // #fabd2f - yellow
+	GruvboxGreen  = "142" // #b8bb26 - green
+	GruvboxBlue   = "109" // #83a598 - blue
+)
 
-	// Get terminal width
-	width := 80 // fallback
-	if w, _, err := term.GetSize(int(os.Stdin.Fd())); err == nil {
-		width = w
-	}
-
-	// Build 3-section header like UW PICO
-	leftSection := fmt.Sprintf("  %s", Version)
-
+func (s *Screen) renderStatusLine(ab *bytes.Buffer) {
+	width, height := s.getTerminalSize()
 	filename := "New Buffer"
 	if s.buffer.fPath != "" {
 		filename = getDisplayPath(s.buffer.fPath)
-	}
-	centerSection := fmt.Sprintf("File: %s", filename)
+		maxFilenameWidth := width * 35 / 100 // 35% of terminal width
 
-	rightSection := ""
+		if len(filename) > maxFilenameWidth {
+			filename = "..." + filename[len(filename)-maxFilenameWidth+3:]
+		}
+	}
+
+	modifiedFlag := ""
 	if s.buffer.modified {
-		rightSection = fmt.Sprintf("%s  ", "MODIFIED")
+		modifiedFlag = " [Modified]"
 	}
 
-	// Calculate center position for middle section
-	centerStart := (width - len(centerSection)) / 2
+	time := time.Now().Format("15:04")
+	leftStatus := fmt.Sprintf(
+		"%s%s  |  Line %d, Col %d  |  %d Lines  |  (T) %s", filename,
+		modifiedFlag,
+		s.cY,
+		s.cX,
+		len(s.buffer.lines),
+		time,
+	)
+	remainingWidth := width - len(leftStatus)
 
-	// Build header with exact positioning
-	header := make([]rune, width)
-	for i := range header {
-		header[i] = ' ' // Fill with spaces
-	}
+	// Render with right-aligned time
+	fmt.Fprintf(ab, "\x1b[%d;1H\x1b[38;5;%s;48;5;%sm%s%*s\x1b[0m",
+		height, GruvboxFg1, GruvboxBg1, leftStatus, remainingWidth, Version)
+}
 
-	// Place left section (starts at position 0)
-	copy(header[0:], []rune(leftSection))
+func (s *Screen) Refresh() {
+	ab := bytes.NewBufferString("\x1b[?25l") // Hide cursor
 
-	// Place center section (centered)
-	if centerStart >= 0 && centerStart+len(centerSection) <= width {
-		copy(header[centerStart:], []rune(centerSection))
-	}
+	width, _ := s.getTerminalSize()
 
-	// Place right section (right-aligned)
-	rightStart := width - len(rightSection)
-	if rightStart >= 0 {
-		copy(header[rightStart:], []rune(rightSection))
-	}
-
-	// Header with inverted colors covering full row
-	fmt.Fprintf(ab, "\x1b[1;1H\x1b[7m%s\x1b[0m", string(header))
-
-	// Render buffer content starting from line 2
+	// Render buffer content starting from line 1
 	maxLines := max(s.cY, len(s.buffer.lines))
 	for i := range maxLines {
 		line := ""
@@ -596,25 +596,27 @@ func (s *Screen) Refresh() {
 			line = s.buffer.lines[i]
 		}
 
-		// Current line highlighting + offset by 1 for header
+		// Current line highlighting
 		if i+1 == s.cY {
 			// Pad line to full terminal width for complete background highlight
 			paddedLine := fmt.Sprintf("%-*s", width, line)
-			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K\x1b[48;5;236m%s\x1b[0m", i+2, paddedLine)
+			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K\x1b[48;5;236m%s\x1b[0m", i+1, paddedLine)
 		} else {
-			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K%s", i+2, line)
+			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K%s", i+1, line)
 		}
 	}
 
 	// Clear leftover lines (offset for header)
 	if s.lastLines > maxLines {
 		for i := maxLines; i < s.lastLines; i++ {
-			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K", i+2)
+			fmt.Fprintf(ab, "\x1b[%d;1H\x1b[K", i+1)
 		}
 	}
 
+	s.renderStatusLine(ab)
+
 	// Cursor position (offset by 1 for header)
-	fmt.Fprintf(ab, "\x1b[%d;%dH", s.cY+1, s.cX)
+	fmt.Fprintf(ab, "\x1b[%d;%dH", s.cY, s.cX)
 	s.lastLines = maxLines
 	ab.WriteString("\x1b[?25h")
 	ab.WriteTo(os.Stdout)
@@ -643,18 +645,15 @@ func (s *Screen) Restart() {
 	s.buffer.lines = []string{""}
 }
 
-// \x1b[%d;%dH     Move to row,col
-
 func (s *Screen) SetPrompt(prompt string) {
 	s.prompt = prompt
-	fmt.Printf("\x1b[%d;1H\x1b[K%s\x1b[?25l", s.getTerminalHeight(), prompt)
+	_, height := s.getTerminalSize()
+	fmt.Printf("\x1b[%d;1H\x1b[K%s\x1b[?25l", height, prompt)
 }
 
-// TODO: Later we can detect resize
-func (s *Screen) getTerminalHeight() int {
-	// Get terminal size - fallback to 24 if unable to determine
-	if _, height, err := term.GetSize(int(os.Stdin.Fd())); err == nil {
-		return height
+func (s *Screen) getTerminalSize() (width, height int) {
+	if width, height, err := term.GetSize(int(os.Stdin.Fd())); err == nil {
+		return width, height
 	}
-	return 24
+	return 80, 24
 }
