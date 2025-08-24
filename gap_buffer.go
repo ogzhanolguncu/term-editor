@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type GapBuffer struct {
 	buffer   []rune
 	gapStart int
@@ -16,12 +18,16 @@ type GapBuffer struct {
 // Better error handling - Maybe add those error-returning variants we discussed
 // Gap info - GapSize() int, GapPosition() int for debugging or stats
 // Shrink buffer - When gap gets too large, compact it
-func NewGapBuffer(initialSize int) *GapBuffer {
+
+func NewGapBuffer(initialSize int) (*GapBuffer, error) {
+	if initialSize <= 0 {
+		return nil, fmt.Errorf("initialSize must be positive, got %d", initialSize)
+	}
 	return &GapBuffer{
 		buffer:   make([]rune, initialSize),
 		gapStart: 0,
 		gapEnd:   initialSize,
-	}
+	}, nil
 }
 
 func (gb *GapBuffer) ToString() string {
@@ -58,8 +64,11 @@ func (gb *GapBuffer) expandBuffer() {
 	gb.gapEnd = newSize - len(rightPart) // Gap ends before right part
 }
 
-// MoveCursorTo add boundary checks
-func (gb *GapBuffer) MoveCursorTo(pos int) {
+// MoveGapTo add boundary checks
+func (gb *GapBuffer) MoveGapTo(pos int) {
+	if pos > gb.Length() {
+		return
+	}
 	// Don't allow negative
 	if pos < 0 {
 		return

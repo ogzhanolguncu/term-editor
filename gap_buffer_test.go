@@ -7,7 +7,8 @@ import (
 )
 
 func TestCountWords(t *testing.T) {
-	gbuf := NewGapBuffer(30)
+	gbuf, err := NewGapBuffer(30)
+	require.NoError(t, err)
 
 	require.True(t, gbuf.gapEnd == 30)
 	require.True(t, gbuf.gapStart == 0)
@@ -16,7 +17,8 @@ func TestCountWords(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
-	gbuf := NewGapBuffer(6)
+	gbuf, err := NewGapBuffer(6)
+	require.NoError(t, err)
 
 	gbuf.Insert('H')
 	gbuf.Insert('e')
@@ -28,7 +30,9 @@ func TestInsert(t *testing.T) {
 }
 
 func TestExpand(t *testing.T) {
-	gbuf := NewGapBuffer(3)
+	gbuf, err := NewGapBuffer(3)
+	require.NoError(t, err)
+
 	gbuf.Insert('H')
 	gbuf.Insert('e')
 	gbuf.Insert('l')
@@ -42,7 +46,9 @@ func TestExpand(t *testing.T) {
 }
 
 func TestCursorMove(t *testing.T) {
-	gbuf := NewGapBuffer(10)
+	gbuf, err := NewGapBuffer(10)
+	require.NoError(t, err)
+
 	gbuf.Insert('H')
 	gbuf.Insert('e')
 	gbuf.Insert('l')
@@ -52,7 +58,7 @@ func TestCursorMove(t *testing.T) {
 	require.Equal(t, gbuf.gapStart, 5)
 	require.Equal(t, gbuf.gapEnd, 10)
 
-	gbuf.MoveCursorTo(2)
+	gbuf.MoveGapTo(2)
 	require.Equal(t, gbuf.ToString(), "Hello")
 	require.Equal(t, gbuf.gapStart, 2)
 	require.Equal(t, gbuf.gapEnd, 7)
@@ -60,15 +66,15 @@ func TestCursorMove(t *testing.T) {
 	gbuf.Insert('X')
 	require.Equal(t, gbuf.ToString(), "HeXllo")
 
-	gbuf.MoveCursorTo(6)
+	gbuf.MoveGapTo(6)
 
 	gbuf.Insert('T')
 	require.Equal(t, gbuf.ToString(), "HeXlloT")
 	require.Equal(t, gbuf.gapStart, 7)
 	require.Equal(t, gbuf.gapEnd, 10)
 
-	gbuf.MoveCursorTo(10)
-	gbuf.MoveCursorTo(8)
+	gbuf.MoveGapTo(10)
+	gbuf.MoveGapTo(8)
 
 	gbuf.Insert('X')
 	gbuf.Insert('Y')
@@ -78,7 +84,9 @@ func TestCursorMove(t *testing.T) {
 }
 
 func TestBackspace(t *testing.T) {
-	gbuf := NewGapBuffer(10)
+	gbuf, err := NewGapBuffer(10)
+	require.NoError(t, err)
+
 	gbuf.Insert('H')
 	gbuf.Insert('e')
 	gbuf.Insert('l')
@@ -97,7 +105,9 @@ func TestBackspace(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	gbuf := NewGapBuffer(10)
+	gbuf, err := NewGapBuffer(10)
+	require.NoError(t, err)
+
 	gbuf.Insert('H')
 	gbuf.Insert('e')
 	gbuf.Insert('l')
@@ -107,7 +117,7 @@ func TestDelete(t *testing.T) {
 	require.Equal(t, gbuf.gapStart, 5)
 	require.Equal(t, gbuf.gapEnd, 10)
 
-	gbuf.MoveCursorTo(0)
+	gbuf.MoveGapTo(0)
 
 	require.Equal(t, gbuf.gapStart, 0)
 	require.Equal(t, gbuf.gapEnd, 5)
@@ -118,7 +128,7 @@ func TestDelete(t *testing.T) {
 	require.Equal(t, gbuf.gapStart, 0)
 	require.Equal(t, gbuf.gapEnd, 6)
 
-	gbuf.MoveCursorTo(3)
+	gbuf.MoveGapTo(3)
 
 	gbuf.Delete()
 
