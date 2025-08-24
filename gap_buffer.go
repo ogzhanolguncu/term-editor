@@ -6,6 +6,16 @@ type GapBuffer struct {
 	gapEnd   int
 }
 
+// TODO:
+// Insert string - InsertString(s string) for pasting or inserting multiple characters efficiently
+// Get character at position - CharAt(pos int) rune for syntax highlighting, search, etc.
+// Delete range - DeleteRange(start, end int) for selecting and deleting blocks of text
+// Get substring - Substring(start, end int) string for copying selected text
+// Find/search - Find(needle string) []int to locate text patterns
+// Cursor position tracking - Add a CursorPos() int method to know where you are
+// Better error handling - Maybe add those error-returning variants we discussed
+// Gap info - GapSize() int, GapPosition() int for debugging or stats
+// Shrink buffer - When gap gets too large, compact it
 func NewGapBuffer(initialSize int) *GapBuffer {
 	return &GapBuffer{
 		buffer:   make([]rune, initialSize),
@@ -90,4 +100,17 @@ func (gb *GapBuffer) MoveCursorTo(pos int) {
 	}
 }
 
-func (gb *GapBuffer) Delete() {}
+// Backspace we just have to move gapStart to left
+func (gb *GapBuffer) Backspace() {
+	if gb.gapStart == 0 {
+		return
+	}
+	gb.gapStart--
+}
+
+func (gb *GapBuffer) Delete() {
+	if gb.gapStart == gb.Length() {
+		return
+	}
+	gb.gapEnd++
+}

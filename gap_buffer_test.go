@@ -76,3 +76,58 @@ func TestCursorMove(t *testing.T) {
 	require.Equal(t, gbuf.gapStart, 10)
 	require.Equal(t, gbuf.gapEnd, 10)
 }
+
+func TestBackspace(t *testing.T) {
+	gbuf := NewGapBuffer(10)
+	gbuf.Insert('H')
+	gbuf.Insert('e')
+	gbuf.Insert('l')
+	gbuf.Insert('l')
+	gbuf.Insert('o')
+
+	require.Equal(t, gbuf.gapStart, 5)
+	require.Equal(t, gbuf.gapEnd, 10)
+
+	gbuf.Backspace()
+
+	require.Equal(t, gbuf.gapStart, 4)
+	require.Equal(t, gbuf.gapEnd, 10)
+
+	require.Equal(t, gbuf.ToString(), "Hell")
+}
+
+func TestDelete(t *testing.T) {
+	gbuf := NewGapBuffer(10)
+	gbuf.Insert('H')
+	gbuf.Insert('e')
+	gbuf.Insert('l')
+	gbuf.Insert('l')
+	gbuf.Insert('o')
+
+	require.Equal(t, gbuf.gapStart, 5)
+	require.Equal(t, gbuf.gapEnd, 10)
+
+	gbuf.MoveCursorTo(0)
+
+	require.Equal(t, gbuf.gapStart, 0)
+	require.Equal(t, gbuf.gapEnd, 5)
+
+	gbuf.Delete()
+
+	require.Equal(t, gbuf.ToString(), "ello")
+	require.Equal(t, gbuf.gapStart, 0)
+	require.Equal(t, gbuf.gapEnd, 6)
+
+	gbuf.MoveCursorTo(3)
+
+	gbuf.Delete()
+
+	require.Equal(t, gbuf.ToString(), "ell")
+	require.Equal(t, gbuf.gapStart, 3)
+	require.Equal(t, gbuf.gapEnd, 10)
+
+	gbuf.Delete()
+	require.Equal(t, gbuf.ToString(), "ell")
+	require.Equal(t, gbuf.gapStart, 3)
+	require.Equal(t, gbuf.gapEnd, 10)
+}
