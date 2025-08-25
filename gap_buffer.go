@@ -10,13 +10,11 @@ type GapBuffer struct {
 
 // TODO:
 // Insert string - InsertString(s string) for pasting or inserting multiple characters efficiently
-// Get character at position - CharAt(pos int) rune for syntax highlighting, search, etc.
+// [x] - Get character at position - CharAt(pos int) rune for syntax highlighting, search, etc.
 // Delete range - DeleteRange(start, end int) for selecting and deleting blocks of text
 // Get substring - Substring(start, end int) string for copying selected text
 // Find/search - Find(needle string) []int to locate text patterns
-// Cursor position tracking - Add a CursorPos() int method to know where you are
-// Better error handling - Maybe add those error-returning variants we discussed
-// Gap info - GapSize() int, GapPosition() int for debugging or stats
+// [x] - Gap info - GapSize() int, GapPosition() int for debugging or stats
 // Shrink buffer - When gap gets too large, compact it
 
 func NewGapBuffer(initialSize int) (*GapBuffer, error) {
@@ -130,4 +128,14 @@ func (gb *GapBuffer) Delete() {
 		return
 	}
 	gb.gapEnd++
+}
+
+// GapSize returns the current gap size for debugging and testing.
+func (gb *GapBuffer) GapSize() int {
+	return gb.gapEnd - gb.gapStart
+}
+
+// GapPos returns where the gap (cursor) is positioned in the logical text.
+func (gb *GapBuffer) GapPos() int {
+	return gb.gapStart
 }

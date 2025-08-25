@@ -141,3 +141,30 @@ func TestDelete(t *testing.T) {
 	require.Equal(t, gbuf.gapStart, 3)
 	require.Equal(t, gbuf.gapEnd, 10)
 }
+
+func TestGapSize(t *testing.T) {
+	gbuf, err := NewGapBuffer(10)
+	require.NoError(t, err)
+
+	gbuf.Insert('H')
+	gbuf.Insert('e')
+	gbuf.Insert('l')
+	gbuf.Insert('l')
+	gbuf.Insert('o')
+
+	require.Equal(t, gbuf.GapSize(), 5)
+}
+
+func TestGapPos(t *testing.T) {
+	gbuf, err := NewGapBuffer(10)
+	require.NoError(t, err)
+
+	gbuf.Insert('H')
+	gbuf.Insert('e')
+	gbuf.Insert('l')
+	gbuf.Insert('l')
+	gbuf.Insert('o')
+
+	gbuf.MoveGapTo(3)
+	require.Equal(t, gbuf.GapPos(), 3)
+}
