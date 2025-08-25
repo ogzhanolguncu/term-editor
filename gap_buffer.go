@@ -139,3 +139,16 @@ func (gb *GapBuffer) GapSize() int {
 func (gb *GapBuffer) GapPos() int {
 	return gb.gapStart
 }
+
+func (gb *GapBuffer) CharAt(pos int) rune {
+	if pos < 0 || pos >= gb.Length() {
+		return rune(0)
+	}
+	if pos < gb.gapStart {
+		// Character is in left part of buffer (before gap)
+		return gb.buffer[pos]
+	} else {
+		// Character is in right part, adjust index to skip over gap
+		return gb.buffer[pos+gb.GapSize()]
+	}
+}

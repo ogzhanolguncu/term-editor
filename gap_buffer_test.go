@@ -168,3 +168,17 @@ func TestGapPos(t *testing.T) {
 	gbuf.MoveGapTo(3)
 	require.Equal(t, gbuf.GapPos(), 3)
 }
+
+func TestCharAt(t *testing.T) {
+	gbuf, err := NewGapBuffer(10)
+	require.NoError(t, err)
+
+	gbuf.Insert('H')
+	gbuf.Insert('e')
+	gbuf.Insert('l')
+	gbuf.Insert('l')
+	gbuf.Insert('o')
+
+	require.Equal(t, gbuf.CharAt(4), 'o')
+	require.Equal(t, gbuf.CharAt(11), rune(0))
+}
