@@ -13,7 +13,7 @@ func TestCountWords(t *testing.T) {
 	require.True(t, gbuf.gapEnd == 30)
 	require.True(t, gbuf.gapStart == 0)
 	require.Equal(t, gbuf.Length(), 0)
-	require.Equal(t, gbuf.ToString(), "")
+	require.Equal(t, gbuf.String(), "")
 }
 
 func TestInsert(t *testing.T) {
@@ -24,7 +24,7 @@ func TestInsert(t *testing.T) {
 	gbuf.Insert('e')
 	gbuf.Insert('l')
 
-	require.Equal(t, gbuf.ToString(), "Hel")
+	require.Equal(t, gbuf.String(), "Hel")
 	require.Equal(t, gbuf.gapStart, 3)
 	require.Equal(t, gbuf.gapEnd, 6)
 }
@@ -38,7 +38,7 @@ func TestExpand(t *testing.T) {
 	gbuf.Insert('l')
 	gbuf.Insert('l')
 
-	require.Equal(t, gbuf.ToString(), "Hell")
+	require.Equal(t, gbuf.String(), "Hell")
 	require.Equal(t, gbuf.Length(), 4)
 	require.Equal(t, gbuf.gapStart, 4)
 	require.Equal(t, gbuf.gapEnd, 6)
@@ -59,17 +59,17 @@ func TestCursorMove(t *testing.T) {
 	require.Equal(t, gbuf.gapEnd, 10)
 
 	gbuf.MoveGapTo(2)
-	require.Equal(t, gbuf.ToString(), "Hello")
+	require.Equal(t, gbuf.String(), "Hello")
 	require.Equal(t, gbuf.gapStart, 2)
 	require.Equal(t, gbuf.gapEnd, 7)
 
 	gbuf.Insert('X')
-	require.Equal(t, gbuf.ToString(), "HeXllo")
+	require.Equal(t, gbuf.String(), "HeXllo")
 
 	gbuf.MoveGapTo(6)
 
 	gbuf.Insert('T')
-	require.Equal(t, gbuf.ToString(), "HeXlloT")
+	require.Equal(t, gbuf.String(), "HeXlloT")
 	require.Equal(t, gbuf.gapStart, 7)
 	require.Equal(t, gbuf.gapEnd, 10)
 
@@ -101,7 +101,7 @@ func TestBackspace(t *testing.T) {
 	require.Equal(t, gbuf.gapStart, 4)
 	require.Equal(t, gbuf.gapEnd, 10)
 
-	require.Equal(t, gbuf.ToString(), "Hell")
+	require.Equal(t, gbuf.String(), "Hell")
 }
 
 func TestDelete(t *testing.T) {
@@ -124,7 +124,7 @@ func TestDelete(t *testing.T) {
 
 	gbuf.Delete()
 
-	require.Equal(t, gbuf.ToString(), "ello")
+	require.Equal(t, gbuf.String(), "ello")
 	require.Equal(t, gbuf.gapStart, 0)
 	require.Equal(t, gbuf.gapEnd, 6)
 
@@ -132,12 +132,12 @@ func TestDelete(t *testing.T) {
 
 	gbuf.Delete()
 
-	require.Equal(t, gbuf.ToString(), "ell")
+	require.Equal(t, gbuf.String(), "ell")
 	require.Equal(t, gbuf.gapStart, 3)
 	require.Equal(t, gbuf.gapEnd, 10)
 
 	gbuf.Delete()
-	require.Equal(t, gbuf.ToString(), "ell")
+	require.Equal(t, gbuf.String(), "ell")
 	require.Equal(t, gbuf.gapStart, 3)
 	require.Equal(t, gbuf.gapEnd, 10)
 }

@@ -30,7 +30,8 @@ func NewGapBuffer(initialSize int) (*GapBuffer, error) {
 	}, nil
 }
 
-func (gb *GapBuffer) ToString() string {
+// String returns the actual text, skipping the gap.
+func (gb *GapBuffer) String() string {
 	leftPart := string(gb.buffer[0:gb.gapStart])
 	rightPart := string(gb.buffer[gb.gapEnd:])
 	return leftPart + rightPart
@@ -40,6 +41,7 @@ func (gb *GapBuffer) Length() int {
 	return len(gb.buffer) - (gb.gapEnd - gb.gapStart)
 }
 
+// Insert adds a char at the current position, expanding buffer if gap is full.
 func (gb *GapBuffer) Insert(ch rune) {
 	if gb.gapEnd-gb.gapStart == 0 {
 		gb.expandBuffer()
@@ -48,6 +50,9 @@ func (gb *GapBuffer) Insert(ch rune) {
 	gb.gapStart++
 }
 
+// expandBuffer doubles the buffer size while preserving the gap structure.
+// Creates a new gap in the middle by copying text before/after the old gap
+// to the start/end of the new buffer.
 func (gb *GapBuffer) expandBuffer() {
 	newSize := len(gb.buffer) * 2
 
@@ -64,7 +69,9 @@ func (gb *GapBuffer) expandBuffer() {
 	gb.gapEnd = newSize - len(rightPart) // Gap ends before right part
 }
 
-// MoveGapTo add boundary checks
+// MoveGapTo moves gap around by figuring out which direction to go first.
+// Then, shifts existing one by one till we hit the desired gap.
+// Idea is we swap x+1 with y+1, x is gapStart and y is gapEnd or x-1 with y-1 depending on the direction.
 func (gb *GapBuffer) MoveGapTo(pos int) {
 	if pos > gb.Length() {
 		return
@@ -109,7 +116,7 @@ func (gb *GapBuffer) MoveGapTo(pos int) {
 	}
 }
 
-// Backspace we just have to move gapStart to left
+// Backspace removes the char before the cursor. No-op at start of buffer.
 func (gb *GapBuffer) Backspace() {
 	if gb.gapStart == 0 {
 		return
@@ -117,6 +124,7 @@ func (gb *GapBuffer) Backspace() {
 	gb.gapStart--
 }
 
+// Delete removes the char at the cursor. No-op at end of buffer.
 func (gb *GapBuffer) Delete() {
 	if gb.gapStart == gb.Length() {
 		return
