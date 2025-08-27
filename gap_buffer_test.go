@@ -182,3 +182,30 @@ func TestCharAt(t *testing.T) {
 	require.Equal(t, gbuf.CharAt(4), 'o')
 	require.Equal(t, gbuf.CharAt(11), rune(0))
 }
+
+func TestInsertString(t *testing.T) {
+	gbuf, err := NewGapBuffer(10)
+	require.NoError(t, err)
+
+	gbuf.Insert('H')
+	gbuf.Insert('e')
+	gbuf.Insert('l')
+	gbuf.Insert('l')
+	gbuf.Insert('o')
+	gbuf.InsertString(" World!")
+
+	require.Equal(t, gbuf.String(), "Hello World!")
+}
+
+func TestDeleteRange(t *testing.T) {
+	gbuf, err := NewGapBuffer(30)
+	require.NoError(t, err)
+	gbuf.InsertString("Hello World!")
+
+	// Delete "o Wo" (positions 4-7, exclusive end)
+	gbuf.DeleteRange(4, 8)
+
+	// // Should result in "Hellrld!"
+	require.Equal(t, "Hellrld!", gbuf.String())
+	require.Equal(t, 8, gbuf.Length()) // Original 12 chars - 4 deleted chars
+}

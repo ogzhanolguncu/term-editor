@@ -1,6 +1,8 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type GapBuffer struct {
 	buffer   []rune
@@ -9,13 +11,13 @@ type GapBuffer struct {
 }
 
 // TODO:
-// Insert string - InsertString(s string) for pasting or inserting multiple characters efficiently
+// [x] - Insert string - InsertString(s string) for pasting or inserting multiple characters efficiently
 // [x] - Get character at position - CharAt(pos int) rune for syntax highlighting, search, etc.
-// Delete range - DeleteRange(start, end int) for selecting and deleting blocks of text
-// Get substring - Substring(start, end int) string for copying selected text
-// Find/search - Find(needle string) []int to locate text patterns
+// [x] - Delete range - DeleteRange(start, end int) for selecting and deleting blocks of text
+// [ ] - Get substring - Substring(start, end int) string for copying selected text
+// [ ] - Find/search - Find(needle string) []int to locate text patterns
 // [x] - Gap info - GapSize() int, GapPosition() int for debugging or stats
-// Shrink buffer - When gap gets too large, compact it
+// [ ] - Shrink buffer - When gap gets too large, compact it
 
 func NewGapBuffer(initialSize int) (*GapBuffer, error) {
 	if initialSize <= 0 {
@@ -151,4 +153,14 @@ func (gb *GapBuffer) CharAt(pos int) rune {
 		// Character is in right part, adjust index to skip over gap
 		return gb.buffer[pos+gb.GapSize()]
 	}
+}
+
+// InsertString adds a string to the buffer. Calls Insert under the hood.
+func (gb *GapBuffer) InsertString(text string) {
+	for _, v := range text {
+		gb.Insert(v)
+	}
+}
+
+func (gb *GapBuffer) DeleteRange(start, end int) {
 }
