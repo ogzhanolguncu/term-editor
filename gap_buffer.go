@@ -163,4 +163,18 @@ func (gb *GapBuffer) InsertString(text string) {
 }
 
 func (gb *GapBuffer) DeleteRange(start, end int) {
+	if gb.Length() == 0 || start == end {
+		return
+	}
+
+	startingPoint := max(0, min(start, end))
+	endPoint := min(gb.Length(), max(start, end))
+
+	if startingPoint >= endPoint {
+		return
+	}
+
+	diff := endPoint - startingPoint
+	gb.MoveGapTo(startingPoint)
+	gb.gapEnd = gb.gapEnd + diff
 }

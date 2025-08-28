@@ -204,8 +204,82 @@ func TestDeleteRange(t *testing.T) {
 
 	// Delete "o Wo" (positions 4-7, exclusive end)
 	gbuf.DeleteRange(4, 8)
-
-	// // Should result in "Hellrld!"
+	// Should result in "Hellrld!"
 	require.Equal(t, "Hellrld!", gbuf.String())
 	require.Equal(t, 8, gbuf.Length()) // Original 12 chars - 4 deleted chars
+}
+
+func TestDeleteRangeInReverse(t *testing.T) {
+	gbuf, err := NewGapBuffer(30)
+	require.NoError(t, err)
+	gbuf.InsertString("Hello World!")
+
+	// Delete "o Wo" (positions 4-7, exclusive end)
+	gbuf.DeleteRange(8, 4)
+	// Should result in "Hellrld!"
+	require.Equal(t, "Hellrld!", gbuf.String())
+	require.Equal(t, 8, gbuf.Length()) // Original 12 chars - 4 deleted chars
+}
+
+func TestDeleteRangeAtBeginning(t *testing.T) {
+	gbuf, err := NewGapBuffer(30)
+	require.NoError(t, err)
+	gbuf.InsertString("Hello World!")
+	// Delete "Hell" (positions 0-3, exclusive end)
+	gbuf.DeleteRange(0, 4)
+	// Should result in "o World!"
+	require.Equal(t, "o World!", gbuf.String())
+	require.Equal(t, 8, gbuf.Length()) // Original 12 chars - 4 deleted chars
+}
+
+func TestDeleteRangeAtEnd(t *testing.T) {
+	gbuf, err := NewGapBuffer(30)
+	require.NoError(t, err)
+	gbuf.InsertString("Hello World!")
+	// Delete "rld!" (positions 8-11, exclusive end)
+	gbuf.DeleteRange(8, 12)
+	// Should result in "Hello Wo"
+	require.Equal(t, "Hello Wo", gbuf.String())
+	require.Equal(t, 8, gbuf.Length()) // Original 12 chars - 4 deleted chars
+}
+
+func TestDeleteRangeEntireBuffer(t *testing.T) {
+	gbuf, err := NewGapBuffer(30)
+	require.NoError(t, err)
+	gbuf.InsertString("Hello World!")
+	// Delete everything (positions 0-11, exclusive end)
+	gbuf.DeleteRange(0, 12)
+	// Should result in empty string
+	require.Equal(t, "", gbuf.String())
+	require.Equal(t, 0, gbuf.Length())
+}
+
+func TestDeleteRangeEmptyRange(t *testing.T) {
+	gbuf, err := NewGapBuffer(30)
+	require.NoError(t, err)
+	gbuf.InsertString("Hello World!")
+	// Delete nothing (same start and end position)
+	gbuf.DeleteRange(5, 5)
+	// Should remain unchanged
+	require.Equal(t, "Hello World!", gbuf.String())
+	require.Equal(t, 12, gbuf.Length())
+}
+
+func TestDeleteRangeOutOfBounds(t *testing.T) {
+	gbuf, err := NewGapBuffer(30)
+	require.NoError(t, err)
+	gbuf.InsertString("Hello World!")
+	gbuf.DeleteRange(5, 20)
+	require.Equal(t, "Hello", gbuf.String())
+	require.Equal(t, 5, gbuf.Length())
+}
+
+func TestDeleteRangeOnEmptyBuffer(t *testing.T) {
+	gbuf, err := NewGapBuffer(30)
+	require.NoError(t, err)
+	// Try to delete from empty buffer - should be a noop
+	gbuf.DeleteRange(0, 1)
+	// Should remain empty
+	require.Equal(t, "", gbuf.String())
+	require.Equal(t, 0, gbuf.Length())
 }
