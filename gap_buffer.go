@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 )
 
 type GapBuffer struct {
@@ -14,7 +15,7 @@ type GapBuffer struct {
 // [x] - Insert string - InsertString(s string) for pasting or inserting multiple characters efficiently
 // [x] - Get character at position - CharAt(pos int) rune for syntax highlighting, search, etc.
 // [x] - Delete range - DeleteRange(start, end int) for selecting and deleting blocks of text
-// [ ] - Get substring - Substring(start, end int) string for copying selected text
+// [x] - Get substring - Substring(start, end int) string for copying selected text
 // [ ] - Find/search - Find(needle string) []int to locate text patterns
 // [x] - Gap info - GapSize() int, GapPosition() int for debugging or stats
 // [ ] - Shrink buffer - When gap gets too large, compact it
@@ -177,4 +178,45 @@ func (gb *GapBuffer) DeleteRange(start, end int) {
 	diff := endPoint - startingPoint
 	gb.MoveGapTo(startingPoint)
 	gb.gapEnd = gb.gapEnd + diff
+}
+
+func (gb *GapBuffer) Substring(start, end int) string {
+	if start < 0 {
+		start = 0
+	}
+
+	text := gb.String()
+	if len(text) == 0 {
+		return ""
+	}
+
+	if end > len(text) {
+		end = len(text)
+	}
+
+	if start >= end {
+		return ""
+	}
+
+	return text[start:end]
+}
+
+func (gb *GapBuffer) Find(needle string) []int {
+	text := gb.String()
+	var positions []int
+	start := 0
+
+	for {
+		pos := strings.Index(text[start:], needle)
+		if pos == -1 {
+			break
+		}
+
+		actualPos := start + pos
+		positions = append(positions, actualPos)
+
+		start = actualPos + 1
+	}
+
+	return positions
 }
