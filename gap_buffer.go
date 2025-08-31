@@ -220,48 +220,55 @@ func (gb *GapBuffer) Substring(start, end int) string {
 	if start > gb.Length() || start < 0 || start >= end {
 		return ""
 	}
-
 	// Clamp end to buffer length
-	if end > gb.Length() {
+	if end > gb.Length() { // Fixed: was >=, should be >
 		end = gb.Length()
 	}
-
-	// Entire substring is before the gap
+	// Substring is entirely on the left side of gap
 	if end <= gb.gapStart {
 		return string(gb.buffer[start:end])
 	}
-
-	// Entire substring is after the gap
+	// Substring is entirely on the right side of gap
 	if start >= gb.gapStart {
+		// Skip the gap offset since users see logical text positions, not buffer positions.
+		// E.g., if buffer length is 15, actual text is 12, and gap moved to position 6,
+		// then buffer[6:9] would target gap space instead of text, so we add gap offset.
 		gapOffset := gb.GapSize()
 		return string(gb.buffer[start+gapOffset : end+gapOffset])
 	}
-
-	// Substring spans the gap
+	// Substring spans the gap - need to copy from both sides
 	leftLen := gb.gapStart - start
 	rightLen := end - gb.gapStart
-
 	result := make([]rune, leftLen+rightLen)
+	// Copy text from left side of buffer
 	copy(result[:leftLen], gb.buffer[start:gb.gapStart])
+	// Copy text from right side of buffer
 	copy(result[leftLen:], gb.buffer[gb.gapEnd:gb.gapEnd+rightLen])
 
 	return string(result)
 }
 
+// Find moves through text char by char then tries to do full text check at every stop.
+// E.g
+// Text: "Hello Hello"
+// Search: "Hello"
+// Lands on "H" then start moving as much as needle length if every char matches it means starting position is a match
 func (gb *GapBuffer) Find(needle string) []int {
+	// If search is empty, bail
 	if len(needle) == 0 {
 		return []int{}
 	}
 
 	positions := make([]int, 0)
 	needleLen := len(needle)
-	bufferLen := gb.Length()
+	textLen := gb.Length()
 
-	if needleLen > bufferLen {
+	// If search is bigger than the actual text, bail
+	if needleLen > textLen {
 		return positions
 	}
 
-	for start := 0; start <= bufferLen-needleLen; start++ {
+	for start := 0; start <= textLen-needleLen; start++ {
 		match := true
 		for i := range needleLen {
 			if gb.CharAt(start+i) != rune(needle[i]) {
