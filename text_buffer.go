@@ -39,4 +39,3 @@ package main
 // LineCount(), LineToChar(), CharToLine() - test your line tracking
 // Rest of the methods
 //
-// The private helper methods will emerge naturally as you implement the public ones. You'll know exactly what insertLineAt() and shiftLinesAfter() need to do once you're writing Insert().
