@@ -15,27 +15,6 @@ import (
 	"golang.org/x/term"
 )
 
-// TODO:
-// [x] Implement Ctrl+S save functionality with prompting at the bottom
-// [x] Add command line argument support for opening file
-// [x] Add file loading (Ctrl+O) - load file content, clear buffer, reset cursor
-// [x] Track modified state - bool flag, set on edits, clear on save/load
-// [x] Implement Ctrl+N for new file
-// [x] Add Ctrl+Q quit with save prompt
-// CRITICAL REFACTORING (Before Scrolling):
-// [x] Move cursor state into Screen struct - remove global cX,cY, add cursorX,cursorY fields, create MoveCursor()/GetCursor() methods
-// [x] Fix cursor management - replace scattered cX,cY assignments with Screen methods, buffer ops shouldn't touch cursor
-// [x] Add bottom status line - "filename [Modified] | Line X, Col Y | N lines", real-time updates, truncate long names
-// MAJOR FEATURES:
-// [ ] Vertical scrolling - add scrollY offset, render visible lines only, auto-scroll on cursor move, Page Up/Down support
-// [ ] Search functionality (Ctrl+F) - real-time highlighting, F3/Shift+F3 navigation, integration with scrolling
-// MINOR:
-// [ ] Handle Home/End keys properly
-// [ ] Clipboard operations (Ctrl+A/X/C/V)
-// [ ] Basic syntax highlighting
-// [ ] Undo/Redo (Ctrl+Z/Y)
-// [ ] Line numbers, word wrap, terminal resize handling
-
 const Version = "GICO 0.1"
 
 type Key int

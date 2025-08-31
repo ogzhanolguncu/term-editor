@@ -10,30 +10,6 @@ type GapBuffer struct {
 	gapEnd   int
 }
 
-// TODO:
-// [x] - Insert string - InsertString(s string) for pasting or inserting multiple characters efficiently
-// [x] - Get character at position - CharAt(pos int) rune for syntax highlighting, search, etc.
-// [x] - Delete range - DeleteRange(start, end int) for selecting and deleting blocks of text
-// [x] - Get substring - Substring(start, end int) string for copying selected text
-// [x] - Find/search - Find(needle string) []int to locate text patterns
-// [x] - Gap info - GapSize() int, GapPosition() int for debugging or stats
-// [x] - Smart expandBuffer - Use adaptive gap sizing instead of always doubling
-// [x] - UTF-8 safety - Ensure gap movement doesn't corrupt multi-byte sequences (low risk with []rune)
-//
-// SEPARATE LINE HANDLING (DON'T PUT IN GAP BUFFER):
-// [ ] - LineIndex struct - Separate component that tracks line boundaries
-// [ ] - LineIndex.Update() - Watches gap buffer changes and updates line positions
-// [ ] - LineIndex.CharToLine() - Convert character position to line number
-// [ ] - LineIndex.LineToChar() - Convert line number to character position
-// [ ] - LineIndex.LineCount() - Total number of lines in buffer
-//
-// MULTI-CURSOR SUPPORT (SEPARATE FROM GAP BUFFER):
-// [ ] - CursorManager struct - Tracks multiple cursor positions independently
-// [ ] - CursorManager.Update() - Adjusts all cursors when gap buffer changes
-// [ ] - CursorManager.Insert() - Apply same edit at all cursor positions
-// [ ] - CursorManager.AddCursor() - Add new cursor at position
-// [ ] - Selection support - Each cursor can have associated selection range
-
 func NewGapBuffer(initialSize int) (*GapBuffer, error) {
 	if initialSize <= 0 {
 		return nil, fmt.Errorf("initialSize must be positive, got %d", initialSize)
