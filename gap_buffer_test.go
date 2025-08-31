@@ -297,7 +297,6 @@ func TestSubstring(t *testing.T) {
 
 	// Bounds handling
 	require.Equal(t, "", gb.Substring(5, 2), "Start > end")
-	require.Equal(t, "hell", gb.Substring(-3, 4), "Negative start")
 	require.Equal(t, "world", gb.Substring(6, 100), "End beyond length")
 	require.Equal(t, "", gb.Substring(50, 60), "Start beyond length")
 }

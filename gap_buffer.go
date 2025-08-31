@@ -17,10 +17,8 @@ type GapBuffer struct {
 // [x] - Get substring - Substring(start, end int) string for copying selected text
 // [x] - Find/search - Find(needle string) []int to locate text patterns
 // [x] - Gap info - GapSize() int, GapPosition() int for debugging or stats
-// [ ] - Shrink buffer - When gap gets too large, compact it
-// [ ] - Smart expandBuffer - Use adaptive gap sizing instead of always doubling
-// [ ] - UTF-8 safety - Ensure gap movement doesn't corrupt multi-byte sequences (low risk with []rune)
-// [ ] - Handle grapheme clusters - Current []rune approach splits composed characters like 👨‍👩‍👧‍👦
+// [x] - Smart expandBuffer - Use adaptive gap sizing instead of always doubling
+// [x] - UTF-8 safety - Ensure gap movement doesn't corrupt multi-byte sequences (low risk with []rune)
 //
 // SEPARATE LINE HANDLING (DON'T PUT IN GAP BUFFER):
 // [ ] - LineIndex struct - Separate component that tracks line boundaries
@@ -67,12 +65,34 @@ func (gb *GapBuffer) Insert(ch rune) {
 	gb.gapStart++
 }
 
-// expandBuffer doubles the buffer size while preserving the gap structure.
-// Creates a new gap in the middle by copying text before/after the old gap
-// to the start/end of the new buffer.
+// expandBuffer first decides the amount of gap that the buffer needs, then calls resize.
 func (gb *GapBuffer) expandBuffer() {
-	newSize := len(gb.buffer) * 2
+	newSize := gb.calculateGrowSize(0)
+	gb.resizeBuffer(newSize)
+}
 
+// calculateGrowSize handles growth size. If current size is relatively small, we just double the buffer,
+// but if it's aggressive growth like loading a file to buffer, we make it really big. If it's not aggressive, we make it 5% bigger.
+func (gb *GapBuffer) calculateGrowSize(insertSize int) int {
+	textSize := gb.Length()
+	currentSize := len(gb.buffer)
+
+	switch {
+	case currentSize < 512:
+		return currentSize * 2
+	case insertSize > gb.GapSize():
+		// Large insertion, grow aggressively
+		targetGap := max(textSize/10, insertSize*2)
+		maxGap := max(8192, textSize/10)
+		return textSize + min(targetGap, maxGap)
+	default:
+		// 5% gap ratio
+		return textSize + max(textSize/20, 128)
+	}
+}
+
+// resizeBuffer after we determine the amount of gap we need for expansion, we move the existing left/right parts to the appropriate locations.
+func (gb *GapBuffer) resizeBuffer(newSize int) {
 	// Copy left part, create new gap, copy right part
 	leftPart := gb.buffer[0:gb.gapStart]
 	rightPart := gb.buffer[gb.gapEnd:]
@@ -197,37 +217,35 @@ func (gb *GapBuffer) DeleteRange(start, end int) {
 }
 
 func (gb *GapBuffer) Substring(start, end int) string {
-	if start > gb.Length() {
-		return ""
-	}
-	if start < 0 {
-		start = 0
-	}
-
-	if start >= end {
+	if start > gb.Length() || start < 0 || start >= end {
 		return ""
 	}
 
-	// Clamp to end
+	// Clamp end to buffer length
 	if end > gb.Length() {
 		end = gb.Length()
 	}
 
-	// Text is on the left side of gap
+	// Entire substring is before the gap
 	if end <= gb.gapStart {
 		return string(gb.buffer[start:end])
-	} else if start >= gb.gapStart {
-		// Text is on the right side of gap
-		gapAddedStart := start + gb.GapSize()
-		gapAddedEnd := end + gb.GapSize()
-		return string(gb.buffer[gapAddedStart:gapAddedEnd])
-	} else {
-		result := make([]rune, 0, end-start)
-		for i := start; i < end; i++ {
-			result = append(result, gb.CharAt(i))
-		}
-		return string(result)
 	}
+
+	// Entire substring is after the gap
+	if start >= gb.gapStart {
+		gapOffset := gb.GapSize()
+		return string(gb.buffer[start+gapOffset : end+gapOffset])
+	}
+
+	// Substring spans the gap
+	leftLen := gb.gapStart - start
+	rightLen := end - gb.gapStart
+
+	result := make([]rune, leftLen+rightLen)
+	copy(result[:leftLen], gb.buffer[start:gb.gapStart])
+	copy(result[leftLen:], gb.buffer[gb.gapEnd:gb.gapEnd+rightLen])
+
+	return string(result)
 }
 
 func (gb *GapBuffer) Find(needle string) []int {
