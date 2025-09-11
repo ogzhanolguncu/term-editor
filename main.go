@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	buffer *TextBuffer
+	buffer *TextBufferA
 	screen *Screen
 )
 
@@ -61,7 +61,7 @@ func main() {
 		fPath = os.Args[1]
 	}
 
-	buffer = NewTextBuffer(strings.TrimSpace(fPath))
+	buffer = NewTextBufferA(strings.TrimSpace(fPath))
 	screen = NewScreen(buffer)
 	buffer.OpenFile()
 	if buffer.fPath != "" {
@@ -460,14 +460,14 @@ func nuke(err error) {
 
 // ##################### TEXT BUFFER #####################
 
-type TextBuffer struct {
+type TextBufferA struct {
 	lines    []string
 	fPath    string
 	modified bool
 }
 
-func NewTextBuffer(fPath string) *TextBuffer {
-	tb := &TextBuffer{
+func NewTextBufferA(fPath string) *TextBufferA {
+	tb := &TextBufferA{
 		lines:    []string{""},
 		fPath:    fPath,
 		modified: false,
@@ -476,7 +476,7 @@ func NewTextBuffer(fPath string) *TextBuffer {
 	return tb
 }
 
-func (tb *TextBuffer) OpenFile() {
+func (tb *TextBufferA) OpenFile() {
 	if tb.fPath == "" {
 		return
 	}
@@ -519,11 +519,11 @@ func handleCharInsert(ch Key) {
 
 type Screen struct {
 	cX, cY int
-	buffer *TextBuffer
+	buffer *TextBufferA
 	prompt string
 }
 
-func NewScreen(textBuffer *TextBuffer) *Screen {
+func NewScreen(textBuffer *TextBufferA) *Screen {
 	screen := &Screen{
 		buffer: textBuffer,
 		cX:     1,
