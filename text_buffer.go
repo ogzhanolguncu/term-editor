@@ -21,9 +21,9 @@ import (
 // [ ] - LoadFromString(content string) error - Initialize buffer from existing text content
 //
 // LINE-AWARE OPERATIONS:
-// [ ] - LineCount() int - Return number of lines
-// [ ] - LineToChar(lineNum int) int - Convert line number to starting char position
-// [ ] - CharToLine(pos int) int - Convert char position to line number (binary search)
+// [x] - LineCount() int - Return number of lines
+// [x] - LineToChar(lineNum int) int - Convert line number to starting char position
+// [x] - CharToLine(pos int) int - Convert char position to line number (binary search)
 // [ ] - GetLine(lineNum int) string - Return content of specific line
 // [ ] - LineLength(lineNum int) int - Return character count of line (excluding \n)
 //
@@ -92,3 +92,53 @@ func (tb *TextBuffer) Insert(pos int, ch rune) {
 		}
 	}
 }
+
+func (tb *TextBuffer) LineCount() int {
+	return len(tb.lineStarts)
+}
+
+func (tb *TextBuffer) LineToChar(lineNum int) int {
+	if lineNum <= 0 {
+		return 0
+	}
+
+	if lineNum >= len(tb.lineStarts) {
+		return tb.lineStarts[len(tb.lineStarts)-1]
+	}
+	return tb.lineStarts[lineNum]
+}
+
+func (tb *TextBuffer) CharToLine(pos int) int {
+	if pos <= 0 {
+		return 0
+	}
+	if pos >= tb.Length() {
+		return len(tb.lineStarts) - 1
+	}
+
+	// Binary search for the line containing pos
+	for i := 0; i < len(tb.lineStarts)-1; i++ {
+		if pos >= tb.lineStarts[i] && pos < tb.lineStarts[i+1] {
+			return i
+		}
+	}
+
+	// pos is in the last line
+	return len(tb.lineStarts) - 1
+}
+
+// func (tb *TextBuffer) CharToLine(pos int) int {
+// 	if pos <= 0 {
+// 		return 0
+// 	}
+// 	if pos >= tb.length {
+// 		return len(tb.lineStarts) - 1
+// 	}
+//
+// 	// Find the rightmost line start <= pos
+// 	line := sort.Search(len(tb.lineStarts), func(i int) bool {
+// 		return tb.lineStarts[i] > pos
+// 	}) - 1
+//
+// 	return line
+// }
