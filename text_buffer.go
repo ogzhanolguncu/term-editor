@@ -8,25 +8,10 @@ import (
 )
 
 // TEXTBUFFER COORDINATOR (OWNS GAP BUFFER + LINE TRACKING):
-// [x] - TextBuffer struct - gap *GapBuffer, lineStarts []int fields
-// [x] - NewTextBuffer(initialSize int) (*TextBuffer, error) - Initialize with gap buffer and line starts at [0]
-// [x] - String() string - Return full text content
-// [x] - Length() int - Return total character count
-// [x] - Insert(pos int, ch rune)  - Insert single character, update line tracking
-// [x] - InsertString(pos int, text string) error - Insert text, handle multiple newlines efficiently
 // [ ] - Delete(pos int) error - Delete single character, merge lines if deleting \n
 // [ ] - DeleteRange(start, end int) error - Delete range, handle multiple newline removal
-// [x] - CharAt(pos int) rune - Get character at position (delegate to gap buffer)
-// [x] - Substring(start, end int) string - Get text range (delegate to gap buffer)
-// [x] - Find(needle string) []int - Search text (delegate to gap buffer)
+
 // [ ] - LoadFromString(content string) error - Initialize buffer from existing text content
-//
-// LINE-AWARE OPERATIONS:
-// [x] - LineCount() int - Return number of lines
-// [x] - LineToChar(lineNum int) int - Convert line number to starting char position
-// [x] - CharToLine(pos int) int - Convert char position to line number (binary search)
-// [x] - GetLine(lineNum int) string - Return content of specific line
-// [x] - LineLength(lineNum int) int - Return character count of line (excluding \n)
 //
 // INTERNAL LINE TRACKING (PRIVATE METHODS):
 // [ ] - insertLineAt(pos int) - Add new line start to lineStarts array
@@ -35,15 +20,6 @@ import (
 // [ ] - rebuildLines() - Full line scan (for debugging/validation)
 // [ ] - findLineInsertPosition(pos int) int - Binary search to find where to insert new line start
 //
-//
-//Start implementing in this order:
-
-// TextBuffer struct definition
-// NewTextBuffer() constructor
-// Basic pass-through methods (String(), Length(), CharAt())
-// Insert() with line tracking - this is your core logic
-// LineCount(), LineToChar(), CharToLine() - test your line tracking
-// Rest of the methods
 
 type TextBuffer struct {
 	gBuf       *GapBuffer
