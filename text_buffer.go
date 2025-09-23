@@ -159,3 +159,28 @@ func (tb *TextBuffer) Line(lineNum int) string {
 func (tb *TextBuffer) LineLength(lineNum int) int {
 	return len(strings.TrimSpace(tb.Line(lineNum)))
 }
+
+func (tb *TextBuffer) Delete(pos int) {
+	if pos < 0 || pos >= tb.Length() {
+		return
+	}
+
+	isNewLine := tb.CharAt(pos) == '\n'
+	tb.gBuf.MoveGapTo(pos)
+	tb.gBuf.Delete()
+
+	if isNewLine {
+		for i, start := range tb.lineStarts {
+			if start == pos+1 {
+				tb.lineStarts = append(tb.lineStarts[:i], tb.lineStarts[i+1:]...)
+				break
+			}
+		}
+	}
+
+	for i := range len(tb.lineStarts) {
+		if tb.lineStarts[i] > pos {
+			tb.lineStarts[i]--
+		}
+	}
+}
