@@ -34,11 +34,42 @@ func (gb *GapBuffer) Length() int {
 
 // Insert adds a char at the current position, expanding buffer if gap is full.
 func (gb *GapBuffer) Insert(ch rune) {
-	if gb.gapEnd-gb.gapStart == 0 {
+	if gb.GapSize() == 0 {
 		gb.expandBuffer()
 	}
 	gb.buffer[gb.gapStart] = ch
 	gb.gapStart++
+}
+
+// InsertAt moves the gap first, then does the insertion.
+func (gb *GapBuffer) InsertAt(pos int, ch rune) {
+	gb.MoveGapTo(pos)
+	gb.Insert(ch)
+}
+
+// InsertString adds a string to the buffer. Calls Insert under the hood.
+func (gb *GapBuffer) InsertString(text string) {
+	if len(text) == 0 {
+		return
+	}
+
+	textRunes := []rune(text)
+
+	if gb.GapSize() < len(textRunes) {
+		newSize := gb.calculateGrowSize(len(textRunes))
+		gb.resizeBuffer(newSize)
+	}
+
+	for _, r := range textRunes {
+		gb.buffer[gb.gapStart] = r
+		gb.gapStart++
+	}
+}
+
+// InsertStringAt moves the gap first, then does the insertion.
+func (gb *GapBuffer) InsertStringAt(pos int, text string) {
+	gb.MoveGapTo(pos)
+	gb.InsertString(text)
 }
 
 // expandBuffer first decides the amount of gap that the buffer needs, then calls resize.
@@ -165,13 +196,6 @@ func (gb *GapBuffer) CharAt(pos int) rune {
 	} else {
 		// Character is in right part, adjust index to skip over gap
 		return gb.buffer[pos+gb.GapSize()]
-	}
-}
-
-// InsertString adds a string to the buffer. Calls Insert under the hood.
-func (gb *GapBuffer) InsertString(text string) {
-	for _, v := range text {
-		gb.Insert(v)
 	}
 }
 

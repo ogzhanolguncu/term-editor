@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewlineCount(t *testing.T) {
+func TestBufferNewlineCount(t *testing.T) {
 	tb, err := NewTextBuffer(30)
 	require.NoError(t, err)
 
@@ -24,7 +24,7 @@ func TestNewlineCount(t *testing.T) {
 	require.Equal(t, []int{0, 2, 3, 5}, tb.lineStarts)
 }
 
-func TestLineToChar(t *testing.T) {
+func TestBufferLineToChar(t *testing.T) {
 	tb, err := NewTextBuffer(100)
 	require.NoError(t, err)
 
@@ -76,7 +76,7 @@ func TestLineToChar(t *testing.T) {
 	require.Equal(t, 3, nlTb.LineToChar(10)) // clamp to last line
 }
 
-func TestCharToLine(t *testing.T) {
+func TestBufferCharToLine(t *testing.T) {
 	tb, err := NewTextBuffer(100)
 	require.NoError(t, err)
 
@@ -129,4 +129,96 @@ func TestCharToLine(t *testing.T) {
 	require.Equal(t, 0, emptyTb.CharToLine(0))
 	require.Equal(t, 0, emptyTb.CharToLine(-1))
 	require.Equal(t, 0, emptyTb.CharToLine(1))
+}
+
+func TestBufferInsertString(t *testing.T) {
+	tb, err := NewTextBuffer(100)
+	require.NoError(t, err)
+	text := "abc\nde\n\nfgh\nij"
+	for i, ch := range text {
+		tb.Insert(i, ch)
+	}
+	// Verify initial state
+	require.Equal(t, 14, tb.Length())
+	require.Equal(t, 5, tb.LineCount())
+	require.Equal(t, "abc\nde\n\nfgh\nij", tb.String())
+
+	t.Run("insert at end (fast path)", func(t *testing.T) {
+		tb2 := copyTextBuffer(tb)
+		tb2.InsertString(14, "xyz\n123")
+		require.Equal(t, 21, tb2.Length())
+		require.Equal(t, 6, tb2.LineCount())
+		require.Equal(t, "abc\nde\n\nfgh\nijxyz\n123", tb2.String())
+	})
+
+	t.Run("insert in middle (slow path)", func(t *testing.T) {
+		tb2 := copyTextBuffer(tb)
+		tb2.InsertString(7, "NEW\nLINE\n")
+		require.Equal(t, 23, tb2.Length())
+		require.Equal(t, 7, tb2.LineCount())
+		require.Equal(t, "abc\nde\nNEW\nLINE\n\nfgh\nij", tb2.String())
+
+		require.Equal(t, 4, tb2.LineToChar(1))
+		require.Equal(t, 7, tb2.LineToChar(2))
+		require.Equal(t, 11, tb2.LineToChar(3))
+		require.Equal(t, 16, tb2.LineToChar(4))
+		require.Equal(t, 17, tb2.LineToChar(5))
+	})
+}
+
+func copyTextBuffer(original *TextBuffer) *TextBuffer {
+	// Create new buffer with same capacity
+	newTB, _ := NewTextBuffer(len(original.gBuf.buffer))
+
+	// Copy the text content
+	text := original.String()
+	if len(text) > 0 {
+		newTB.InsertString(0, text)
+	}
+
+	return newTB
+}
+
+func TestBufferGetLine(t *testing.T) {
+	tb, err := NewTextBuffer(100)
+	require.NoError(t, err)
+	text := "abc\nde\n\nfgh\nij"
+	for i, ch := range text {
+		tb.Insert(i, ch)
+	}
+	require.Equal(t, 14, tb.Length())
+	require.Equal(t, 5, tb.LineCount())
+	require.Equal(t, "abc\nde\n\nfgh\nij", tb.String())
+
+	require.Equal(t, "abc\n", tb.Line(0))
+	require.Equal(t, "de\n", tb.Line(1))
+	require.Equal(t, "\n", tb.Line(2))
+	require.Equal(t, "fgh\n", tb.Line(3))
+	require.Equal(t, "ij", tb.Line(4))
+
+	require.Equal(t, "", tb.Line(-1))
+	require.Equal(t, "", tb.Line(5))
+	require.Equal(t, "", tb.Line(100))
+}
+
+func TestBufferLineLength(t *testing.T) {
+	tb, err := NewTextBuffer(100)
+	require.NoError(t, err)
+	text := "abc\nde\n\nfgh\nij"
+	for i, ch := range text {
+		tb.Insert(i, ch)
+	}
+	require.Equal(t, 14, tb.Length())
+	require.Equal(t, 5, tb.LineCount())
+	require.Equal(t, "abc\nde\n\nfgh\nij", tb.String())
+
+	require.Equal(t, 3, tb.LineLength(0))
+	require.Equal(t, 2, tb.LineLength(1))
+	require.Equal(t, 0, tb.LineLength(2))
+	require.Equal(t, 3, tb.LineLength(3))
+	require.Equal(t, 2, tb.LineLength(4))
+
+	require.Equal(t, 0, tb.LineLength(-1))
+	require.Equal(t, 0, tb.LineLength(5))
+	require.Equal(t, 0, tb.LineLength(100))
 }
