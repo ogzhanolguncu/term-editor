@@ -8,18 +8,7 @@ import (
 )
 
 // TEXTBUFFER COORDINATOR (OWNS GAP BUFFER + LINE TRACKING):
-// [ ] - Delete(pos int) error - Delete single character, merge lines if deleting \n
-// [ ] - DeleteRange(start, end int) error - Delete range, handle multiple newline removal
-
 // [ ] - LoadFromString(content string) error - Initialize buffer from existing text content
-//
-// INTERNAL LINE TRACKING (PRIVATE METHODS):
-// [ ] - insertLineAt(pos int) - Add new line start to lineStarts array
-// [ ] - deleteLineAt(pos int) - Remove line start from lineStarts array
-// [ ] - shiftLinesAfter(pos int, delta int) - Adjust line positions after text change
-// [ ] - rebuildLines() - Full line scan (for debugging/validation)
-// [ ] - findLineInsertPosition(pos int) int - Binary search to find where to insert new line start
-//
 
 type TextBuffer struct {
 	gBuf       *GapBuffer
@@ -181,6 +170,34 @@ func (tb *TextBuffer) Delete(pos int) {
 	for i := range len(tb.lineStarts) {
 		if tb.lineStarts[i] > pos {
 			tb.lineStarts[i]--
+		}
+	}
+}
+
+func (tb *TextBuffer) DeleteRange(start, end int) {
+	if start < 0 || end < 0 {
+		return
+	}
+	startingPoint := max(0, min(start, end))
+	endPoint := min(tb.Length(), max(start, end))
+
+	diff := endPoint - startingPoint
+	tb.gBuf.DeleteRange(startingPoint, endPoint)
+
+	var oldIdxs []int
+	for i, lineStart := range tb.lineStarts {
+		if i > 0 && lineStart > startingPoint && lineStart <= endPoint {
+			oldIdxs = append(oldIdxs, i)
+		}
+	}
+	for i := len(oldIdxs) - 1; i >= 0; i-- {
+		idx := oldIdxs[i]
+		tb.lineStarts = append(tb.lineStarts[:idx], tb.lineStarts[idx+1:]...)
+	}
+
+	for i := range tb.lineStarts {
+		if tb.lineStarts[i] > endPoint {
+			tb.lineStarts[i] -= diff
 		}
 	}
 }

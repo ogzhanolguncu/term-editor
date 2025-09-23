@@ -280,3 +280,48 @@ func TestBufferDeleteComplex(t *testing.T) {
 	require.Equal(t, "ine\nshortlong line her", tb.String()) // unchanged
 	require.Equal(t, []int{0, 4}, tb.lineStarts)
 }
+
+func TestBufferDeleteRange(t *testing.T) {
+	tb, err := NewTextBuffer(100)
+	require.NoError(t, err)
+
+	tb.InsertString(0, "abc\nde\n\nfgh\nij")
+	require.Equal(t, "abc\nde\n\nfgh\nij", tb.String())
+	require.Equal(t, []int{0, 4, 7, 8, 12}, tb.lineStarts)
+
+	tb.DeleteRange(4, 6)
+	require.Equal(t, "abc\n\n\nfgh\nij", tb.String())
+	require.Equal(t, []int{0, 4, 5, 6, 10}, tb.lineStarts)
+
+	tb.DeleteRange(1, 7)
+	require.Equal(t, "agh\nij", tb.String())
+	require.Equal(t, []int{0, 4}, tb.lineStarts)
+
+	original := tb.String()
+	tb.DeleteRange(-5, -1)   // Invalid range
+	tb.DeleteRange(100, 200) // Beyond buffer
+	tb.DeleteRange(2, 2)     // Zero length
+	require.Equal(t, original, tb.String())
+
+	tb.DeleteRange(3, 1)
+	require.Equal(t, "a\nij", tb.String())
+	require.Equal(t, []int{0, 2}, tb.lineStarts)
+
+	tb.DeleteRange(0, tb.Length())
+	require.Equal(t, "", tb.String())
+	require.Equal(t, []int{0}, tb.lineStarts)
+	require.Equal(t, 1, tb.LineCount())
+	tb2, _ := NewTextBuffer(100)
+	tb2.InsertString(0, "line1\nline2\nline3\nend")
+	require.Equal(t, []int{0, 6, 12, 18}, tb2.lineStarts)
+	tb2.DeleteRange(6, 18)
+	require.Equal(t, "line1\nend", tb2.String())
+	require.Equal(t, []int{0, 6}, tb2.lineStarts)
+	tb3, _ := NewTextBuffer(100)
+	tb3.InsertString(0, "a\n\n\nb")
+	require.Equal(t, []int{0, 2, 3, 4}, tb3.lineStarts)
+
+	tb3.DeleteRange(2, 4)
+	require.Equal(t, "a\nb", tb3.String())
+	require.Equal(t, []int{0, 2}, tb3.lineStarts)
+}
