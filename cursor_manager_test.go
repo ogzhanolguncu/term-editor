@@ -364,3 +364,69 @@ func TestMoveUpColumnClamping(t *testing.T) {
 
 	require.False(t, cm.MoveUp())
 }
+
+func TestMoveDown(t *testing.T) {
+	tb, _ := NewTextBuffer(100)
+	tb.InsertString(0, "Hello\nWorld\nTest")
+	cm := NewCursorManager(tb)
+
+	// Start at line 0, column 0
+	cm.SetPosition(0)
+	line, col := cm.GetLineColumn()
+	require.Equal(t, 0, line)
+	require.Equal(t, 0, col)
+
+	// Move down to line 1, column 0
+	require.True(t, cm.MoveDown())
+	require.Equal(t, 6, cm.GetPosition())
+	line, col = cm.GetLineColumn()
+	require.Equal(t, 1, line)
+	require.Equal(t, 0, col)
+
+	// Move down to line 2, column 0
+	require.True(t, cm.MoveDown())
+	require.Equal(t, 12, cm.GetPosition())
+	line, col = cm.GetLineColumn()
+	require.Equal(t, 2, line)
+	require.Equal(t, 0, col)
+
+	// Can't move down from last line
+	require.False(t, cm.MoveDown())
+	require.Equal(t, 12, cm.GetPosition())
+}
+
+func TestMoveDownColumnClamping(t *testing.T) {
+	tb, _ := NewTextBuffer(100)
+	tb.InsertString(0, "abcd\nef\nghhr\nkeke")
+	cm := NewCursorManager(tb)
+
+	// Start at line 0, column 3 (at 'd')
+	cm.SetPosition(3)
+	line, col := cm.GetLineColumn()
+	require.Equal(t, 0, line)
+	require.Equal(t, 3, col)
+
+	// Move down to line 1 "ef" (only 2 chars) - column 3 doesn't exist, clamp to column 1
+	require.True(t, cm.MoveDown())
+	require.Equal(t, 6, cm.GetPosition()) // Position 5 + 1
+	line, col = cm.GetLineColumn()
+	require.Equal(t, 1, line)
+	require.Equal(t, 1, col)
+
+	// Move down to line 2 "ghhr" (4 chars) - column 1 exists
+	require.True(t, cm.MoveDown())
+	require.Equal(t, 9, cm.GetPosition()) // Position 8 + 1
+	line, col = cm.GetLineColumn()
+	require.Equal(t, 2, line)
+	require.Equal(t, 1, col)
+
+	// Move down to line 3 "keke" (4 chars) - column 1 exists
+	require.True(t, cm.MoveDown())
+	require.Equal(t, 14, cm.GetPosition()) // Position 13 + 1
+	line, col = cm.GetLineColumn()
+	require.Equal(t, 3, line)
+	require.Equal(t, 1, col)
+
+	// Can't move down from last line
+	require.False(t, cm.MoveDown())
+}

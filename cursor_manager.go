@@ -34,10 +34,6 @@ type CursorManager struct {
 // [ ] MoveToLineEnd() bool
 // [ ] MoveToLine(lineNum int) error
 
-// PHASE 4 - INTERFACE COMPLIANCE (for future multi-cursor):
-// [ ] GetCursors() []Cursor
-// [ ] MoveCursor(index int, pos int) error
-
 func NewCursorManager(buffer *TextBuffer) *CursorManager {
 	return &CursorManager{
 		cursor: &Cursor{position: 0},
@@ -111,6 +107,22 @@ func (cm *CursorManager) MoveUp() bool {
 	}
 
 	targetLine := line - 1
+	targetLineStart := cm.buffer.LineToChar(targetLine)
+	targetLineLength := cm.buffer.LineLength(targetLine)
+
+	targetCol := min(col, max(0, targetLineLength-1))
+
+	cm.cursor.position = targetLineStart + targetCol
+	return true
+}
+
+func (cm *CursorManager) MoveDown() bool {
+	line, col := cm.GetLineColumn()
+	if line >= cm.buffer.LineCount()-1 {
+		return false
+	}
+
+	targetLine := line + 1
 	targetLineStart := cm.buffer.LineToChar(targetLine)
 	targetLineLength := cm.buffer.LineLength(targetLine)
 

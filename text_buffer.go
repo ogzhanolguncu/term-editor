@@ -94,6 +94,7 @@ func (tb *TextBuffer) LineCount() int {
 	return len(tb.lineStarts)
 }
 
+// LineToChar returns char position using line
 func (tb *TextBuffer) LineToChar(lineNum int) int {
 	if lineNum <= 0 {
 		return 0
@@ -105,6 +106,7 @@ func (tb *TextBuffer) LineToChar(lineNum int) int {
 	return tb.lineStarts[lineNum]
 }
 
+// CharToLine returns line position using char position
 func (tb *TextBuffer) CharToLine(pos int) int {
 	if pos <= 0 {
 		return 0
