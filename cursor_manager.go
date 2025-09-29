@@ -1,30 +1,16 @@
 // This handles cursor positioning.
 package main
 
-import "fmt"
-
-// CURSOR DATA STRUCTURES:
-// [ ] - Cursor struct - position int, optional selectionStart/selectionEnd int
-// [ ] - CursorManager struct - holds one Cursor and reference to TextBuffer
-// [ ] - NewCursorManager(buffer *TextBuffer, pos int) CursorManager - constructor with buffer reference
-
-// CURSOR INTERFACE METHODS:
-// [ ] - GetPosition() int - return current text position
-// [ ] - SetPosition(pos int) error - move cursor with bounds checking
-// [ ] - GetCursors() []Cursor - return slice with single cursor (interface compliance)
-// [ ] - MoveCursor(index int, pos int) error - move cursor (ignore index, always 0)
-// [ ] - ApplyTextChange(pos int, delta int) - adjust cursor after text insertion/deletion
+import (
+	"fmt"
+)
 
 // CURSOR MOVEMENT OPERATIONS:
-// [ ] - MoveLeft() bool - move left one position, handle line wrapping
-// [ ] - MoveRight() bool - move right one position, handle line wrapping
-// [ ] - MoveUp() bool - move to same column on previous line
 // [ ] - MoveDown() bool - move to same column on next line
 // [ ] - MoveToLineStart() bool - move to beginning of current line
 // [ ] - MoveToLineEnd() bool - move to end of current line
 
 // TEXT-AWARE NAVIGATION:
-// [ ] - GetLineColumn() (int, int) - return current line and column numbers
 // [ ] - MoveToLine(lineNum int) error - jump to start of specific line
 // [ ] - IsAtStart() bool - check if cursor at position 0
 // [ ] - IsAtEnd() bool - check if cursor at end of buffer
@@ -38,21 +24,11 @@ type CursorManager struct {
 	buffer *TextBuffer
 }
 
-//  CORE POSITIONING:
-// [ ] NewCursorManager(buffer *TextBuffer, pos int) (*CursorManager, error)
-// [ ] GetPosition() int
-// [ ] SetPosition(pos int) error
-// [ ] ApplyTextChange(changePos int, delta int)
-// [ ] GetLineColumn() (int, int)
-
 // BASIC MOVEMENT:
-// [ ] MoveLeft() bool
-// [ ] MoveRight() bool
 // [ ] IsAtStart() bool
 // [ ] IsAtEnd() bool
 
 // LINE MOVEMENT:
-// [ ] MoveUp() bool
 // [ ] MoveDown() bool
 // [ ] MoveToLineStart() bool
 // [ ] MoveToLineEnd() bool
@@ -81,72 +57,65 @@ func (cm *CursorManager) SetPosition(pos int) error {
 	return nil
 }
 
-// Text: "Hello World"
-//        0123456789A (positions)
-//
-// Delete 3 characters starting at position 4
-// - changePos = 4
-// - delta = -3 (negative because we're deleting)
-// - Deleted range: positions 4, 5, 6 ("o W")
-// - Result: "Hell World"
-//
-//
-// The logic checks where the cursor is:
-//
-// Case 1: Cursor after deleted range
-//
-// Cursor at position 8 ("r" in "World")
-// - cursor.position > changePos? (8 > 4) ✓
-// - cursor.position <= changePos + (-delta)? (8 <= 4 + 3 = 7) ✗
-// - So cursor was AFTER deleted range
-// - Shift it back: position 8 + (-3) = 5
-//
-//
-// Case 2: Cursor inside deleted range
-//
-// Cursor at position 5 ("W" that got deleted)
-// - cursor.position > changePos? (5 > 4) ✓
-// - cursor.position <= changePos + (-delta)? (5 <= 7) ✓
-// - So cursor was INSIDE deleted range
-// - Clamp to deletion start: position = 4
-//
-//
-// The math:
-//
-// changePos + (-delta) = end of deleted range
-//
-// (-delta) converts negative delta to positive (deletion size)
-//
-// If cursor ≤ end of deleted range, it was inside the deletion
-//
-// If cursor > end of deleted range, it was after the deletion
-
 func (cm *CursorManager) ApplyTextChange(changePos int, delta int) {
+	// Text inserted
 	if delta > 0 {
-		// Text inserted
+		// Applied change has to be smaller or right at the end of cursor
 		if cm.cursor.position >= changePos {
 			cm.cursor.position += delta
 		}
-	} else if delta < 0 {
 		// Text deleted
+	} else if delta < 0 {
+		// e.g. If cursor is at pos=20 and user is trying to delete 35 to 38 that doesnn't change the cursor position so we don't really care
 		if cm.cursor.position > changePos {
-			if cm.cursor.position <= changePos+(-delta) {
-				// Cursor was inside deleted range
+			// Cursor has to go back to changePos because it was within the deleted range
+			if changePos+(-delta) >= cm.cursor.position {
 				cm.cursor.position = changePos
 			} else {
-				// Cursor was after deleted range
-				cm.cursor.position += delta // delta is negative
+				// Cursor is after deleted range so we just change deduct delta from cursor
+				cm.cursor.position -= (-delta)
 			}
 		}
 	}
 }
 
-// Text: "Hello\nWorld\nTest"
-//       01234 5 67890 1 2345
-//            ^cursor at pos 7
-//
-// Line = CharToLine(7) = 1
-// LineStart = LineToChar(1) = 6
-// Column = 7 - 6 = 1
-// Returns (1, 1)
-// func (cm *CursorManager) GetLineColumn() (int,int) {
+// GetLineColumn returns line, column
+func (cm *CursorManager) GetLineColumn() (int, int) {
+	line := cm.buffer.CharToLine(cm.cursor.position)
+	lineStart := cm.buffer.LineToChar(line)
+	// Column is the offset from the start of the line
+	return line, cm.cursor.position - lineStart
+}
+
+func (cm *CursorManager) MoveRight() bool {
+	pos := cm.cursor.position
+	if pos >= cm.buffer.Length() {
+		return false
+	}
+	cm.cursor.position++
+	return true
+}
+
+func (cm *CursorManager) MoveLeft() bool {
+	if cm.cursor.position == 0 {
+		return false
+	}
+	cm.cursor.position--
+	return true
+}
+
+func (cm *CursorManager) MoveUp() bool {
+	line, col := cm.GetLineColumn()
+	if line == 0 {
+		return false
+	}
+
+	targetLine := line - 1
+	targetLineStart := cm.buffer.LineToChar(targetLine)
+	targetLineLength := cm.buffer.LineLength(targetLine)
+
+	targetCol := min(col, max(0, targetLineLength-1))
+
+	cm.cursor.position = targetLineStart + targetCol
+	return true
+}
