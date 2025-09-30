@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -322,7 +321,6 @@ func TestMoveUp(t *testing.T) {
 
 	require.True(t, cm.MoveUp())
 
-	log.Printf("%s", string(cm.buffer.CharAt(cm.GetPosition())))
 	line, col = cm.GetLineColumn()
 	require.Equal(t, 1, line)
 	require.Equal(t, 0, col)
@@ -429,4 +427,105 @@ func TestMoveDownColumnClamping(t *testing.T) {
 
 	// Can't move down from last line
 	require.False(t, cm.MoveDown())
+}
+
+func TestMoveToLineStart(t *testing.T) {
+	tb, _ := NewTextBuffer(100)
+	tb.InsertString(0, "Hello\nWorld\nTest")
+	cm := NewCursorManager(tb)
+
+	cm.SetPosition(3)
+	cm.MoveToLineStart()
+
+	// Test from end of first line (on newline)
+	cm.SetPosition(5) // "Hello|\n"
+	cm.MoveToLineStart()
+	require.Equal(t, 0, cm.GetPosition())
+
+	// Test from start of second line (already at start)
+	cm.SetPosition(6) // "|World"
+	cm.MoveToLineStart()
+
+	// Test from middle of second line
+	cm.SetPosition(9) // "Wor|ld"
+	cm.MoveToLineStart()
+	require.Equal(t, 6, cm.GetPosition())
+
+	// Test from end of buffer
+	cm.SetPosition(16) // "Test|"
+	cm.MoveToLineStart()
+	require.Equal(t, 12, cm.GetPosition())
+}
+
+func TestMoveToLineEnd(t *testing.T) {
+	tb, _ := NewTextBuffer(100)
+	tb.InsertString(0, "Hello\nWorld\nTest")
+	cm := NewCursorManager(tb)
+
+	// Test from start of first line
+	cm.SetPosition(0) // "|Hello"
+	cm.MoveToLineEnd()
+	require.Equal(t, 5, cm.GetPosition())
+
+	// Test from middle of first line
+	cm.SetPosition(3) // "Hel|lo"
+	cm.MoveToLineEnd()
+	require.Equal(t, 5, cm.GetPosition())
+
+	// Test from end of first line (already at end, on newline)
+	cm.SetPosition(5) // "Hello|\n"
+	cm.MoveToLineEnd()
+	require.Equal(t, 5, cm.GetPosition())
+
+	// Test from start of second line
+	cm.SetPosition(6) // "|World"
+	cm.MoveToLineEnd()
+	require.Equal(t, 11, cm.GetPosition())
+
+	// Test from middle of second line
+	cm.SetPosition(9) // "Wor|ld"
+	cm.MoveToLineEnd()
+	require.Equal(t, 11, cm.GetPosition())
+	//
+	// Test from end of buffer
+	cm.SetPosition(12) // "|Test"
+	cm.MoveToLineEnd()
+	require.Equal(t, 16, cm.GetPosition())
+	//
+	// // Already at end of buffer
+	cm.SetPosition(16)
+	cm.MoveToLineEnd()
+	require.Equal(t, 16, cm.GetPosition())
+}
+
+func TestIsAtStart(t *testing.T) {
+	tb, _ := NewTextBuffer(100)
+	tb.InsertString(0, "Hello\nWorld")
+	cm := NewCursorManager(tb)
+
+	cm.SetPosition(0)
+	require.True(t, cm.IsAtStart())
+
+	cm.SetPosition(1)
+	require.False(t, cm.IsAtStart())
+}
+
+func TestIsAtEnd(t *testing.T) {
+	tb, _ := NewTextBuffer(100)
+	tb.InsertString(0, "Hello\nWorld")
+	cm := NewCursorManager(tb)
+
+	cm.SetPosition(0)
+	require.False(t, cm.IsAtEnd())
+
+	cm.SetPosition(11)
+	require.True(t, cm.IsAtEnd())
+}
+
+func TestIsAtEndEmptyBuffer(t *testing.T) {
+	tb, _ := NewTextBuffer(100)
+	cm := NewCursorManager(tb)
+
+	require.True(t, cm.IsAtStart())
+	require.True(t, cm.IsAtEnd())
 }

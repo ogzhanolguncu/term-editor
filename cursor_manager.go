@@ -1,19 +1,8 @@
-// This handles cursor positioning.
 package main
 
 import (
 	"fmt"
 )
-
-// CURSOR MOVEMENT OPERATIONS:
-// [ ] - MoveDown() bool - move to same column on next line
-// [ ] - MoveToLineStart() bool - move to beginning of current line
-// [ ] - MoveToLineEnd() bool - move to end of current line
-
-// TEXT-AWARE NAVIGATION:
-// [ ] - MoveToLine(lineNum int) error - jump to start of specific line
-// [ ] - IsAtStart() bool - check if cursor at position 0
-// [ ] - IsAtEnd() bool - check if cursor at end of buffer
 
 type Cursor struct {
 	position int
@@ -23,16 +12,6 @@ type CursorManager struct {
 	cursor *Cursor
 	buffer *TextBuffer
 }
-
-// BASIC MOVEMENT:
-// [ ] IsAtStart() bool
-// [ ] IsAtEnd() bool
-
-// LINE MOVEMENT:
-// [ ] MoveDown() bool
-// [ ] MoveToLineStart() bool
-// [ ] MoveToLineEnd() bool
-// [ ] MoveToLine(lineNum int) error
 
 func NewCursorManager(buffer *TextBuffer) *CursorManager {
 	return &CursorManager{
@@ -50,6 +29,19 @@ func (cm *CursorManager) SetPosition(pos int) error {
 		return fmt.Errorf("position out of bounds")
 	}
 	cm.cursor.position = pos
+	return nil
+}
+
+func (cm *CursorManager) MoveToPosition(line, col int) error {
+	if line < 0 || line >= cm.buffer.LineCount() {
+		return fmt.Errorf("line out of bounds")
+	}
+	lineStart := cm.buffer.LineToChar(line)
+	lineLength := cm.buffer.LineLength(line)
+	if col < 0 || col > lineLength {
+		return fmt.Errorf("column out of bounds")
+	}
+	cm.cursor.position = lineStart + col
 	return nil
 }
 
@@ -130,4 +122,38 @@ func (cm *CursorManager) MoveDown() bool {
 
 	cm.cursor.position = targetLineStart + targetCol
 	return true
+}
+
+func (cm *CursorManager) MoveToLineStart() {
+	line, _ := cm.GetLineColumn()
+	lineStart := cm.buffer.LineToChar(line)
+	cm.cursor.position = lineStart
+}
+
+func (cm *CursorManager) MoveToStart() {
+	cm.cursor.position = 0
+}
+
+func (cm *CursorManager) MoveToLineEnd() {
+	line, _ := cm.GetLineColumn()
+
+	if line >= cm.buffer.LineCount()-1 {
+		cm.cursor.position = cm.buffer.Length()
+		return
+	}
+
+	nextLineStart := cm.buffer.LineToChar(line + 1)
+	cm.cursor.position = nextLineStart - 1
+}
+
+func (cm *CursorManager) MoveToEnd() {
+	cm.cursor.position = cm.buffer.Length()
+}
+
+func (cm *CursorManager) IsAtStart() bool {
+	return cm.cursor.position == 0
+}
+
+func (cm *CursorManager) IsAtEnd() bool {
+	return cm.cursor.position == cm.buffer.Length()
 }
