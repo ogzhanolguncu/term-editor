@@ -1,4 +1,4 @@
-package termui
+package screen
 
 import (
 	"github.com/gdamore/tcell/v2"

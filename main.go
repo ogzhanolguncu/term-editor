@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/ogzhanolguncu/go_editor/editor"
-	termui "github.com/ogzhanolguncu/go_editor/term_ui"
+	"github.com/ogzhanolguncu/go_editor/screen"
 )
 
 func main() {
@@ -12,7 +12,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize editor: %v", err)
 	}
-	terminal, err := termui.NewTerminalUI(editor)
+	terminal, err := screen.NewScreen(editor)
 	if err != nil {
 		log.Fatalf("failed to initialize editor: %v", err)
 	}
