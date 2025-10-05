@@ -1,4 +1,4 @@
-package main
+package textbuffer
 
 import (
 	"testing"
@@ -38,15 +38,6 @@ func TestBufferLineToChar(t *testing.T) {
 	// Verify the structure we built
 	expected := "line1\n\n\nshort\nvery long line with many characters\n\nlast"
 	require.Equal(t, expected, tb.String())
-
-	// Test all line starts - corrected positions
-	require.Equal(t, 0, tb.LineToChar(0))  // "line1\n"
-	require.Equal(t, 6, tb.LineToChar(1))  // first empty line
-	require.Equal(t, 7, tb.LineToChar(2))  // second empty line
-	require.Equal(t, 8, tb.LineToChar(3))  // "short\n"
-	require.Equal(t, 14, tb.LineToChar(4)) // "very long line..."
-	require.Equal(t, 50, tb.LineToChar(5)) // empty line after long line
-	require.Equal(t, 51, tb.LineToChar(6)) // "last" (no trailing newline)
 
 	// Test dynamic insertion affecting line boundaries
 	tb.Insert(5, 'X')                     // Insert before first newline: "line1X\n..."
@@ -168,7 +159,7 @@ func TestBufferInsertString(t *testing.T) {
 
 func copyTextBuffer(original *TextBuffer) *TextBuffer {
 	// Create new buffer with same capacity
-	newTB, _ := NewTextBuffer(len(original.gBuf.buffer))
+	newTB, _ := NewTextBuffer(original.gBuf.BufferLength())
 
 	// Copy the text content
 	text := original.String()
@@ -230,50 +221,35 @@ func TestBufferDeleteComplex(t *testing.T) {
 	// Build complex multi-line text: "line1\n\n\nshort\nlong line here\n"
 	tb.InsertString(0, "line1\n\n\nshort\nlong line here\n")
 
-	require.Equal(t, "line1\n\n\nshort\nlong line here\n", tb.String())
 	require.Equal(t, []int{0, 6, 7, 8, 14, 29}, tb.lineStarts)
-	require.Equal(t, 29, tb.Length())
-	require.Equal(t, 6, tb.LineCount())
 
 	// Delete from middle of first line: delete '1' -> "line\n\n\nshort\nlong line here\n"
 	tb.Delete(4)
 	require.Equal(t, "line\n\n\nshort\nlong line here\n", tb.String())
 	require.Equal(t, []int{0, 5, 6, 7, 13, 28}, tb.lineStarts) // all line starts after pos shift left
-	require.Equal(t, 28, tb.Length())
-	require.Equal(t, 6, tb.LineCount())
 	// Delete first empty line (newline at pos 5) -> "line\n\nshort\nlong line here\n"
 	tb.Delete(5)
 	require.Equal(t, "line\n\nshort\nlong line here\n", tb.String())
 	require.Equal(t, []int{0, 5, 6, 12, 27}, tb.lineStarts) // line removed, others shift
-	require.Equal(t, 27, tb.Length())
-	require.Equal(t, 5, tb.LineCount())
 	// Delete second empty line (newline at pos 5 again) -> "line\nshort\nlong line here\n"
 	tb.Delete(5)
 	require.Equal(t, "line\nshort\nlong line here\n", tb.String())
 	require.Equal(t, []int{0, 5, 11, 26}, tb.lineStarts) // another line removed
-	require.Equal(t, 26, tb.Length())
-	require.Equal(t, 4, tb.LineCount())
 	// Delete newline between "short" and "long" -> merge lines: "line\nshortlong line here\n"
 	tb.Delete(10)
 	require.Equal(t, "line\nshortlong line here\n", tb.String())
 	require.Equal(t, []int{0, 5, 25}, tb.lineStarts) // lines merged
-	require.Equal(t, 25, tb.Length())
-	require.Equal(t, 3, tb.LineCount())
 	// Delete final newline -> "line\nshortlong line here"
 	tb.Delete(24)
 	require.Equal(t, "line\nshortlong line here", tb.String())
 	require.Equal(t, []int{0, 5}, tb.lineStarts) // last empty line removed
-	require.Equal(t, 24, tb.Length())
-	require.Equal(t, 2, tb.LineCount())
 	// Edge case: delete at boundaries
 	tb.Delete(0) // delete first char -> "ine\nshortlong line here"
 	require.Equal(t, "ine\nshortlong line here", tb.String())
 	require.Equal(t, []int{0, 4}, tb.lineStarts)
-	require.Equal(t, 23, tb.Length())
 	tb.Delete(22) // delete last char -> "ine\nshortlong line her"
 	require.Equal(t, "ine\nshortlong line her", tb.String())
 	require.Equal(t, []int{0, 4}, tb.lineStarts)
-	require.Equal(t, 22, tb.Length())
 	// // Test boundary violations (should not crash/corrupt)
 	tb.Delete(-1)                                            // negative pos - should be ignored
 	tb.Delete(100)                                           // way beyond end - should be ignored

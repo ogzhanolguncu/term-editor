@@ -1,22 +1,21 @@
-// TextBuffer is a pass-through wrapper around your gap buffer, but it adds line tracking intelligence.
-package main
+// textbuffer is a pass-through wrapper around your gap buffer, but it adds line tracking intelligence.
+package textbuffer
 
 import (
 	"slices"
 	"sort"
 	"strings"
+
+	gBuf "github.com/ogzhanolguncu/go_editor/gap_buffer"
 )
 
-// TEXTBUFFER COORDINATOR (OWNS GAP BUFFER + LINE TRACKING):
-// [ ] - LoadFromString(content string) error - Initialize buffer from existing text content
-
 type TextBuffer struct {
-	gBuf       *GapBuffer
+	gBuf       *gBuf.GapBuffer
 	lineStarts []int
 }
 
 func NewTextBuffer(initialSize int) (*TextBuffer, error) {
-	gapBuffer, err := NewGapBuffer(initialSize)
+	gapBuffer, err := gBuf.NewGapBuffer(initialSize)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +147,9 @@ func (tb *TextBuffer) Line(lineNum int) string {
 
 // LineLength returns the length of the given line. Excludes newlines
 func (tb *TextBuffer) LineLength(lineNum int) int {
-	return len(strings.TrimSpace(tb.Line(lineNum)))
+	line := tb.Line(lineNum)
+	// Only strip the newline, preserve all whitespace
+	return len(strings.TrimSuffix(line, "\n"))
 }
 
 func (tb *TextBuffer) Delete(pos int) {

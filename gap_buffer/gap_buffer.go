@@ -1,4 +1,4 @@
-package main
+package gapbuffer
 
 import (
 	"fmt"
@@ -30,6 +30,11 @@ func (gb *GapBuffer) String() string {
 
 func (gb *GapBuffer) Length() int {
 	return len(gb.buffer) - (gb.gapEnd - gb.gapStart)
+}
+
+// BufferLength required for testing
+func (gb *GapBuffer) BufferLength() int {
+	return len(gb.buffer)
 }
 
 // Insert adds a char at the current position, expanding buffer if gap is full.

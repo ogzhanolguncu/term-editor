@@ -1,13 +1,14 @@
-package main
+package cursormanager
 
 import (
 	"testing"
 
+	textbuffer "github.com/ogzhanolguncu/go_editor/text_buffer"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewCursorManager(t *testing.T) {
-	tb, err := NewTextBuffer(100)
+	tb, err := textbuffer.NewTextBuffer(100)
 	require.NoError(t, err)
 
 	cm := NewCursorManager(tb)
@@ -18,7 +19,7 @@ func TestNewCursorManager(t *testing.T) {
 }
 
 func TestCursorGetPosition(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	cm := NewCursorManager(tb)
 
 	require.Equal(t, 0, cm.GetPosition())
@@ -32,7 +33,7 @@ func TestCursorGetPosition(t *testing.T) {
 }
 
 func TestCursorSetPosition(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello World")
 	cm := NewCursorManager(tb)
 
@@ -67,7 +68,7 @@ func TestCursorSetPosition(t *testing.T) {
 }
 
 func TestCursorSetPositionEmptyBuffer(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	cm := NewCursorManager(tb)
 
 	// Empty buffer - only position 0 is valid
@@ -81,7 +82,7 @@ func TestCursorSetPositionEmptyBuffer(t *testing.T) {
 }
 
 func TestApplyTextChangeInsert(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello World")
 	cm := NewCursorManager(tb)
 
@@ -117,7 +118,7 @@ func TestApplyTextChangeInsert(t *testing.T) {
 }
 
 func TestApplyTextChangeDelete(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello World")
 	cm := NewCursorManager(tb)
 
@@ -153,7 +154,7 @@ func TestApplyTextChangeDelete(t *testing.T) {
 }
 
 func TestApplyTextChangeReplace(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello World")
 	cm := NewCursorManager(tb)
 
@@ -177,7 +178,7 @@ func TestApplyTextChangeReplace(t *testing.T) {
 }
 
 func TestApplyTextChangeEdgeCases(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	cm := NewCursorManager(tb)
 
 	t.Run("empty buffer", func(t *testing.T) {
@@ -194,7 +195,7 @@ func TestApplyTextChangeEdgeCases(t *testing.T) {
 	})
 
 	t.Run("cursor at end of buffer", func(t *testing.T) {
-		tb2, _ := NewTextBuffer(100)
+		tb2, _ := textbuffer.NewTextBuffer(100)
 		tb2.InsertString(0, "Hello")
 		cm2 := NewCursorManager(tb2)
 		cm2.SetPosition(5)                     // At end
@@ -204,7 +205,7 @@ func TestApplyTextChangeEdgeCases(t *testing.T) {
 }
 
 func TestGetLineColumn(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "line1\nline2\n\nline4")
 	cm := NewCursorManager(tb)
 
@@ -258,7 +259,7 @@ func TestGetLineColumn(t *testing.T) {
 }
 
 func TestGetLineColumnEmptyBuffer(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	cm := NewCursorManager(tb)
 
 	line, col := cm.GetLineColumn()
@@ -267,7 +268,7 @@ func TestGetLineColumnEmptyBuffer(t *testing.T) {
 }
 
 func TestGetLineColumnSingleLine(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello World")
 	cm := NewCursorManager(tb)
 
@@ -288,7 +289,7 @@ func TestGetLineColumnSingleLine(t *testing.T) {
 }
 
 func TestMoveLeft(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello\n")
 	cm := NewCursorManager(tb)
 
@@ -309,7 +310,7 @@ func TestMoveLeft(t *testing.T) {
 }
 
 func TestMoveUp(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello\nWorld\nTest")
 	cm := NewCursorManager(tb)
 
@@ -333,7 +334,7 @@ func TestMoveUp(t *testing.T) {
 }
 
 func TestMoveUpColumnClamping(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "abcd\nef\nghhr\nkeke")
 	cm := NewCursorManager(tb)
 
@@ -364,7 +365,7 @@ func TestMoveUpColumnClamping(t *testing.T) {
 }
 
 func TestMoveDown(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello\nWorld\nTest")
 	cm := NewCursorManager(tb)
 
@@ -394,7 +395,7 @@ func TestMoveDown(t *testing.T) {
 }
 
 func TestMoveDownColumnClamping(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "abcd\nef\nghhr\nkeke")
 	cm := NewCursorManager(tb)
 
@@ -430,7 +431,7 @@ func TestMoveDownColumnClamping(t *testing.T) {
 }
 
 func TestMoveToLineStart(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello\nWorld\nTest")
 	cm := NewCursorManager(tb)
 
@@ -458,7 +459,7 @@ func TestMoveToLineStart(t *testing.T) {
 }
 
 func TestMoveToLineEnd(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello\nWorld\nTest")
 	cm := NewCursorManager(tb)
 
@@ -499,7 +500,7 @@ func TestMoveToLineEnd(t *testing.T) {
 }
 
 func TestIsAtStart(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello\nWorld")
 	cm := NewCursorManager(tb)
 
@@ -511,7 +512,7 @@ func TestIsAtStart(t *testing.T) {
 }
 
 func TestIsAtEnd(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	tb.InsertString(0, "Hello\nWorld")
 	cm := NewCursorManager(tb)
 
@@ -523,7 +524,7 @@ func TestIsAtEnd(t *testing.T) {
 }
 
 func TestIsAtEndEmptyBuffer(t *testing.T) {
-	tb, _ := NewTextBuffer(100)
+	tb, _ := textbuffer.NewTextBuffer(100)
 	cm := NewCursorManager(tb)
 
 	require.True(t, cm.IsAtStart())

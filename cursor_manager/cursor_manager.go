@@ -1,7 +1,9 @@
-package main
+package cursormanager
 
 import (
 	"fmt"
+
+	textbuffer "github.com/ogzhanolguncu/go_editor/text_buffer"
 )
 
 type Cursor struct {
@@ -10,10 +12,10 @@ type Cursor struct {
 
 type CursorManager struct {
 	cursor *Cursor
-	buffer *TextBuffer
+	buffer *textbuffer.TextBuffer
 }
 
-func NewCursorManager(buffer *TextBuffer) *CursorManager {
+func NewCursorManager(buffer *textbuffer.TextBuffer) *CursorManager {
 	return &CursorManager{
 		cursor: &Cursor{position: 0},
 		buffer: buffer,
