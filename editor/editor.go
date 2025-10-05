@@ -1,4 +1,4 @@
-package main
+package editor
 
 import (
 	"fmt"
@@ -15,10 +15,10 @@ type Editor struct {
 	message  string                 // Required for showing confirmation messages. e.g "Are you sure you want to save" etc...
 }
 
-func NewEditor(editor *Editor) (*Editor, error) {
+func New() (*Editor, error) {
 	buffer, err := textbuffer.NewTextBuffer(1024)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("editor: failed to create text buffer: %w", err)
 	}
 
 	return &Editor{
@@ -139,6 +139,21 @@ func (e *Editor) GetMessage() string {
 	msg := e.message
 	e.message = "" // Clear after reading
 	return msg
+}
+
+func (e *Editor) GetVisibleContent(startLine, numLines int) []string {
+	lines := make([]string, 0, numLines)
+	totalLines := e.buffer.LineCount()
+
+	for i := range numLines {
+		lineNum := startLine + i
+		if lineNum >= totalLines {
+			break
+		}
+		lines = append(lines, e.buffer.Line(lineNum))
+	}
+
+	return lines
 }
 
 func (e *Editor) SetMessage(msg string) {
