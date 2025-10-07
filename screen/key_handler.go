@@ -38,6 +38,13 @@ func (s *Screen) handleNormal(ev *tcell.EventKey) bool {
 		e.MoveDown()
 	}
 
+	r := ev.Rune()
+
+	// This one handles the command count
+	if e.HandleDigit(r) {
+		return true
+	}
+
 	switch ev.Rune() {
 	case 'i':
 		e.SetMode(editor.ModeInsert)
@@ -58,13 +65,13 @@ func (s *Screen) handleNormal(ev *tcell.EventKey) bool {
 		e.MoveToLineEnd()
 	case 'G':
 		e.MoveToEnd()
-	case 'h', rune(tcell.KeyLeft):
+	case 'h':
 		e.MoveLeft()
-	case 'j', rune(tcell.KeyDown):
+	case 'j':
 		e.MoveDown()
-	case 'k', rune(tcell.KeyUp):
+	case 'k':
 		e.MoveUp()
-	case 'l', rune(tcell.KeyRight):
+	case 'l':
 		e.MoveRight()
 	}
 	return true
@@ -96,7 +103,7 @@ func (s *Screen) handleInsert(ev *tcell.EventKey) bool {
 	case tcell.KeyEnd:
 		e.MoveToLineEnd()
 	case tcell.KeyTAB:
-		e.InsertString(strings.Repeat(" ", 4))
+		e.InsertString(strings.Repeat(" ", tabSize))
 	case tcell.KeyRune:
 		e.InsertChar(ev.Rune())
 	}

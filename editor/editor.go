@@ -55,9 +55,12 @@ func (e *Editor) Backspace() {
 }
 
 func (e *Editor) Delete() {
+	n := e.GetCountAndClear()
 	pos := e.cursor.GetPosition()
-	e.buffer.Delete(pos)
-	e.cursor.ApplyTextChange(pos, -1)
+	for range n {
+		e.buffer.Delete(pos)
+		e.cursor.ApplyTextChange(pos, -1)
+	}
 	e.modified = true
 }
 
@@ -126,22 +129,50 @@ func (e *Editor) SetMode(mode Mode) {
 	e.vimState.mode = mode
 }
 
+func (e *Editor) HandleDigit(r rune) bool {
+	return e.vimState.HandleDigit(r)
+}
+
+func (e *Editor) GetCountAndClear() int {
+	return e.vimState.GetCountAndClear()
+}
+
+func (e *Editor) ClearCount() {
+	e.vimState.ClearCount()
+}
+
 // ### PASSTHROUGH FUNCS
 
 func (e *Editor) MoveLeft() bool {
-	return e.cursor.MoveLeft()
+	n := e.GetCountAndClear()
+	for range n {
+		e.cursor.MoveLeft()
+	}
+	return true
 }
 
 func (e *Editor) MoveRight() bool {
-	return e.cursor.MoveRight()
+	n := e.GetCountAndClear()
+	for range n {
+		e.cursor.MoveRight()
+	}
+	return true
 }
 
 func (e *Editor) MoveUp() bool {
-	return e.cursor.MoveUp()
+	n := e.GetCountAndClear()
+	for range n {
+		e.cursor.MoveUp()
+	}
+	return true
 }
 
 func (e *Editor) MoveDown() bool {
-	return e.cursor.MoveDown()
+	n := e.GetCountAndClear()
+	for range n {
+		e.cursor.MoveDown()
+	}
+	return true
 }
 
 func (e *Editor) MoveToLineStart() {
