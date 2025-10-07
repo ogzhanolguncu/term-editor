@@ -34,6 +34,52 @@ func (cm *CursorManager) SetPosition(pos int) error {
 	return nil
 }
 
+func (cm *CursorManager) MoveToNextWord() {
+	pos := cm.cursor.position
+	text := cm.buffer.String()
+	length := cm.buffer.Length()
+
+	if pos >= length {
+		return
+	}
+
+	i := pos
+
+	// Skip current word
+	for i < length && text[i] != ' ' {
+		i++
+	}
+
+	// Skip spaces
+	for i < length && text[i] == ' ' {
+		i++
+	}
+
+	cm.cursor.position = i
+}
+
+func (cm *CursorManager) MoveToPrevWord() {
+	pos := cm.cursor.position
+	if pos == 0 {
+		return
+	}
+
+	text := cm.buffer.String()
+	i := pos - 1
+
+	// Skip spaces to the left
+	for i > 0 && text[i] == ' ' {
+		i--
+	}
+
+	// Find start of current/previous word
+	for i > 0 && text[i-1] != ' ' {
+		i--
+	}
+
+	cm.cursor.position = i
+}
+
 func (cm *CursorManager) MoveToPosition(line, col int) error {
 	if line < 0 || line >= cm.buffer.LineCount() {
 		return fmt.Errorf("line out of bounds")

@@ -530,3 +530,45 @@ func TestIsAtEndEmptyBuffer(t *testing.T) {
 	require.True(t, cm.IsAtStart())
 	require.True(t, cm.IsAtEnd())
 }
+
+func TestMoveToNextWord(t *testing.T) {
+	tb, _ := textbuffer.NewTextBuffer(100)
+	tb.InsertString(0, "Hello World XXX YYY")
+	cm := NewCursorManager(tb)
+
+	cm.SetPosition(0)
+	cm.MoveToNextWord()
+	require.Equal(t, 6, cm.cursor.position)
+	cm.MoveToNextWord()
+	require.Equal(t, 12, cm.cursor.position)
+	cm.MoveToNextWord()
+	require.Equal(t, 16, cm.cursor.position)
+	cm.MoveToNextWord()
+	require.Equal(t, 19, cm.cursor.position)
+}
+
+func TestMoveToNextWordEdge(t *testing.T) {
+	tb, _ := textbuffer.NewTextBuffer(100)
+	tb.InsertString(0, "Hello")
+	cm := NewCursorManager(tb)
+
+	cm.SetPosition(0)
+	cm.MoveToNextWord()
+	require.Equal(t, 5, cm.cursor.position)
+}
+
+func TestMoveToPrevWord(t *testing.T) {
+	tb, _ := textbuffer.NewTextBuffer(100)
+	tb.InsertString(0, "Hello World XXX YYY")
+	cm := NewCursorManager(tb)
+
+	cm.SetPosition(18)
+	cm.MoveToPrevWord()
+	require.Equal(t, 16, cm.cursor.position)
+	cm.MoveToPrevWord()
+	require.Equal(t, 12, cm.cursor.position)
+	cm.MoveToPrevWord()
+	require.Equal(t, 6, cm.cursor.position)
+	cm.MoveToPrevWord()
+	require.Equal(t, 0, cm.cursor.position)
+}
