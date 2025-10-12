@@ -12,10 +12,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize editor: %v", err)
 	}
-	terminal, err := screen.NewScreen(editor)
+	screen, err := screen.NewScreen(editor)
 	if err != nil {
 		log.Fatalf("failed to initialize editor: %v", err)
 	}
-	defer terminal.Close()
-	terminal.Run()
+	defer screen.Close()
+	screen.Run()
 }

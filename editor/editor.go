@@ -7,6 +7,52 @@ import (
 	textbuffer "github.com/ogzhanolguncu/go_editor/text_buffer"
 )
 
+// # Essential Vim Commands Only
+//
+// ## **Navigation**
+// - [ ] `w`, `b`, `e` - word movement
+// - [ ] `gg` - go to top
+// - [ ] `{count}G` - go to line number (e.g., `5G`)
+// - [ ] `^` - first non-whitespace character
+// - [ ] `%` - matching bracket
+//
+// ## **Editing**
+// - [ ] `dd` - delete line
+// - [ ] `yy` - yank line
+// - [ ] `p` - paste after
+// - [ ] `P` - paste before
+// - [ ] `o` - open line below
+// - [ ] `O` - open line above
+// - [ ] `D` - delete to end of line
+// - [ ] `C` - change to end of line
+// - [ ] `cc` - change line
+// - [ ] `r{char}` - replace character
+// - [ ] `J` - join lines
+// - [ ] `.` - repeat last change
+//
+// ## **Visual Mode**
+// - [ ] `v` - character visual
+// - [ ] `V` - line visual
+// - [ ] Visual: `d`, `y`, `c` - delete/yank/change selection
+//
+// ## **Search**
+// - [ ] `/` - search forward
+// - [ ] `n` - next match
+// - [ ] `N` - previous match
+// - [ ] `*` - search word under cursor
+//
+// ## **Command Mode**
+// - [ ] `:w` - save
+// - [ ] `:q` - quit
+// - [ ] `:wq` - save and quit
+// - [ ] `:q!` - force quit
+// - [ ] `:e <file>` - edit file
+// - [ ] `:{number}` - go to line
+//
+// ## **Undo/Redo** -> We still need that package in isolation
+// - [ ] `u` - undo
+// - [ ] `Ctrl-r` - redo -> If nothing to do update status like with "Already at newest change"
+
 type Editor struct {
 	buffer   *textbuffer.TextBuffer // Text storage and line tacking
 	cursor   *cursor.CursorManager  // Track cursor position
@@ -189,6 +235,14 @@ func (e *Editor) MoveToStart() {
 
 func (e *Editor) MoveToEnd() {
 	e.cursor.MoveToEnd()
+}
+
+func (e *Editor) MoveToNextWord() {
+	e.cursor.MoveToNextWord()
+}
+
+func (e *Editor) MoveToPrevWord() {
+	e.cursor.MoveToPrevWord()
 }
 
 func (e *Editor) GetCursorPosition() int {

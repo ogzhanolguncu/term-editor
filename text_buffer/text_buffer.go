@@ -1,4 +1,4 @@
-// textbuffer is a pass-through wrapper around your gap buffer, but it adds line tracking intelligence.
+// Package textbuffer is a pass-through wrapper around gap buffer, but it adds line tracking intelligence.
 package textbuffer
 
 import (

@@ -73,6 +73,10 @@ func (s *Screen) handleNormal(ev *tcell.EventKey) bool {
 		e.MoveUp()
 	case 'l':
 		e.MoveRight()
+	case 'w':
+		e.MoveToNextWord()
+	case 'b':
+		e.MoveToPrevWord()
 	}
 	return true
 }
@@ -83,7 +87,6 @@ func (s *Screen) handleInsert(ev *tcell.EventKey) bool {
 	case tcell.KeyEsc, tcell.KeyCtrlC:
 		e.SetMode(editor.ModeNormal)
 		return true
-
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		e.Backspace()
 	case tcell.KeyDelete:
